@@ -1,0 +1,6 @@
+{
+    "version": 2,
+    "builds": [{ "src": "api/atualizarSaldo.js", "use": "@vercel/node" }],
+    "routes": [{ "src": "/(.*)", "dest": "/api/atualizarSaldo.js" }]
+  }
+  
