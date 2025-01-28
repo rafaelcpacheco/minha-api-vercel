@@ -8,12 +8,14 @@ module.exports = async (req, res) => {
   }
 
   try {
-    // Aqui você coloca a lógica de como você vai atualizar o saldo com a API do Monday.com.
+    // Construindo corretamente a string JSON para o campo "Saldo"
+    const saldo = parseFloat(debito) + parseFloat(credito);
+
     const response = await axios.post(
       'https://api.monday.com/v2',
       {
         query: `mutation {
-          change_column_values(item_id: ${item_id}, board_id: 8274760820, column_values: "{\"Saldo\": ${debito + credito}}") {
+          change_column_values(item_id: ${item_id}, board_id: 8274760820, column_values: "{\"Saldo\": ${saldo}}") {
             id
           }
         }`
@@ -28,7 +30,7 @@ module.exports = async (req, res) => {
 
     res.status(200).json({ success: true, data: response.data });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Erro ao atualizar saldo novo código raizes' });
+    console.error('Erro:', error.response ? error.response.data : error.message);
+    res.status(500).json({ error: 'Erro ao atualizar saldo' });
   }
 };
