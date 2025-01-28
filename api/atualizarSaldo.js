@@ -15,7 +15,7 @@ module.exports = async (req, res) => {
       'https://api.monday.com/v2',
       {
         query: `mutation {
-          change_column_values(item_id: ${item_id}, board_id: 8274760820, column_values: "{\"Saldo\": ${saldo}}") {
+          change_column_values(item_id: ${item_id}, board_id: 8274760820, column_values: ${JSON.stringify({ Saldo: saldo })}) {
             id
           }
         }`
@@ -30,7 +30,10 @@ module.exports = async (req, res) => {
 
     res.status(200).json({ success: true, data: response.data });
   } catch (error) {
-    console.error('Erro:', error.response ? error.response.data : error.message);
-    res.status(500).json({ error: 'Erro ao atualizar saldo' });
+    console.error('Erro ao atualizar saldo:', error.response ? error.response.data : error.message);
+    res.status(500).json({
+      error: 'Erro ao atualizar saldo',
+      details: error.response ? error.response.data : error.message,
+    });
   }
 };
