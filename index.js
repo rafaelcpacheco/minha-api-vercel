@@ -81,6 +81,7 @@ app.post("/webhook", async (req, res) => {
   if (req.body.challenge) {
     return res.status(200).json({ challenge: req.body.challenge });
   }
+  
   console.log("Recebendo Webhook:", JSON.stringify(req.body, null, 2));
   const payload = req.body.event || {};
 
