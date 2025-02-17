@@ -39,11 +39,13 @@ const fetchMondayData = async (query) => {
 const fetchAllItemsWithColumns = async (boardId) => {
   const query = `{
     boards(ids: ${boardId}) {
-      items {
-        id
-        column_values {
+      items_page {
+        items {
           id
-          value
+          column_values {
+            id
+            value
+          }
         }
       }
     }
@@ -51,12 +53,12 @@ const fetchAllItemsWithColumns = async (boardId) => {
 
   const result = await fetchMondayData(query);
 
-  if (!result.data || !result.data.boards || !result.data.boards[0]?.items) {
+  if (!result.data || !result.data.boards || !result.data.boards[0]?.items_page?.items) {
     console.error("Resposta da API malformada:", JSON.stringify(result, null, 2));
     throw new Error("Resposta da API malformada ou vazia");
   }
 
-  return result.data.boards[0].items;
+  return result.data.boards[0].items_page.items;
 };
 
 // Função para atualizar múltiplos itens em lote
@@ -104,7 +106,7 @@ const updateSaldo = async (boardId, itemId, creditDebitValue) => {
       }
 
       // Converter o valor de "Crédito/Débito" para número
-      const creditDebitValueCurrent = parseFloat(JSON.parse(creditDebitColumn.value)?.value || 0;
+      const creditDebitValueCurrent = parseFloat(JSON.parse(creditDebitColumn.value)?.value || 0);
 
       // Calcular o novo saldo
       if (i === itemIndex) {
