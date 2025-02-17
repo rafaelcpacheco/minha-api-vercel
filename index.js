@@ -92,28 +92,42 @@ const updateSaldo = async (boardId, itemId, creditDebitValue) => {
 
     // Passo 3: Calcular os novos saldos em memória
     let saldoAnterior = 0;
+
+    // Buscar o saldo da linha anterior (se existir)
+    if (itemIndex > 0) {
+      const previousItem = items[itemIndex - 1];
+      const previousSaldoColumn = previousItem.column_values.find(col => col.id === "n_meros_mkn1khzp");
+
+      if (!previousSaldoColumn) {
+        throw new Error("Coluna 'Saldo' não encontrada na linha anterior!");
+      }
+
+      // Converter o valor do saldo anterior para número
+      saldoAnterior = parseFloat(JSON.parse(previousSaldoColumn.value)?.value || 0);
+    }
+
     const updates = [];
 
+    // Iterar sobre os itens a partir do item alterado
     for (let i = itemIndex; i < items.length; i++) {
       const currentItem = items[i];
 
-      // Encontrar as colunas "Crédito/Débito" e "Saldo"
+      // Encontrar a coluna "Crédito/Débito"
       const creditDebitColumn = currentItem.column_values.find(col => col.id === "n_meros_mkmcm7c7");
-      const saldoColumn = currentItem.column_values.find(col => col.id === "n_meros_mkn1khzp");
 
-      if (!creditDebitColumn || !saldoColumn) {
-        throw new Error("Coluna 'Crédito/Débito' ou 'Saldo' não encontrada!");
+      if (!creditDebitColumn) {
+        throw new Error("Coluna 'Crédito/Débito' não encontrada!");
       }
 
       // Converter o valor de "Crédito/Débito" para número
-      const creditDebitValueCurrent = parseFloat(JSON.parse(creditDebitColumn.value)?.value || 0);
+      const creditDebitValueCurrent = parseFloat(JSON.parse(creditDebitColumn.value)?.value || 0;
 
       // Calcular o novo saldo
       if (i === itemIndex) {
-        // Para o item alterado, usar o valor passado como parâmetro
+        // Para o item alterado, somar o valor passado como parâmetro ao saldo anterior
         saldoAnterior += creditDebitValue;
       } else {
-        // Para os demais itens, usar o valor da coluna "Crédito/Débito"
+        // Para os demais itens, somar o valor da coluna "Crédito/Débito" ao saldo anterior
         saldoAnterior += creditDebitValueCurrent;
       }
 
