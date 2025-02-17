@@ -7,7 +7,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Configuração do Token
-const MONDAY_API_TOKEN = process.env.MONDAY_API_TOKEN || "eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjQ2Mzk4MjA1OCwiYWFpIjoxMSwidWlkIjo3MDc2NDQ5MiwiaWFkIjoiMjAyNS0wMS0yN1QyMjoyNDozMS4wMDBaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6Mjc0MjQyMjYsInJnbiI6InVzZTEifQ.ZmiPuR6zE_1jWletXG_8zLUhKizffHyRROHvX0h97o0";
+const MONDAY_API_TOKEN = process.env.MONDAY_API_TOKEN || "eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjQ2Mzk4MjA1OCwiYWFpIjoxESwidWlkIjo3MDc2NDQ5MiwiaWFkIjoiMjAyNS0wMS0yN1QyMjoyNDozMS4wMDBaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6Mjc0MjQyMjYsInJnbiI6InVzZTEifQ.ZmiPuR6zE_1jWletXG_8zLUhKizffHyRROHvX0h97o0";
 
 // Função para chamar a API do monday.com
 const fetchMondayData = async (query) => {
@@ -103,7 +103,7 @@ const updateSaldo = async (boardId, itemId, creditDebitValue) => {
       }
 
       // Converter o valor do saldo anterior para número
-      saldoAnterior = parseFloat(JSON.parse(previousSaldoColumn.value)?.value || 0);
+      saldoAnterior = parseFloat(JSON.parse(previousSaldoColumn.value)?.value || 0;
     }
 
     const updates = [];
