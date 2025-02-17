@@ -22,7 +22,8 @@ const fetchMondayData = async (query) => {
     });
 
     if (!response.ok) {
-      throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
+      const errorResponse = await response.text(); // Captura a resposta de erro
+      throw new Error(`Erro na requisição: ${response.status} ${response.statusText}. Resposta: ${errorResponse}`);
     }
 
     const result = await response.json();
@@ -103,7 +104,7 @@ const updateSaldo = async (boardId, itemId, creditDebitValue) => {
       }
 
       // Converter o valor de "Crédito/Débito" para número
-      const creditDebitValueCurrent = parseFloat(JSON.parse(creditDebitColumn.value)) || 0;
+      const creditDebitValueCurrent = parseFloat(JSON.parse(creditDebitColumn.value)?.value || 0);
 
       // Calcular o novo saldo
       if (i === itemIndex) {
