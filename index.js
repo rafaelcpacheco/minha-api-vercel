@@ -7,7 +7,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Configuração do Token
-const MONDAY_API_TOKEN = process.env.MONDAY_API_TOKEN || "eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjQ2Mzk4MjA1OCwiYWFpIjoxMSwidWlkIjo3MDc2NDQ5MiwiaWFkIjoiMjAyNS0wMS0yN1QyMjoyNDozMS4wMDBaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6Mjc0MjQyMjYsInJnbiI6InVzZTEifQ.ZmiPuR6zE_1jWletXG_8zLUhKizffHyRROHvX0h97o0";
+const MONDAY_API_TOKEN = process.env.MONDAY_API_TOKEN;
 
 // Função para chamar a API do monday.com
 const fetchMondayData = async (query) => {
@@ -22,7 +22,8 @@ const fetchMondayData = async (query) => {
     });
 
     if (!response.ok) {
-      throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
+      const errorResponse = await response.text(); // Captura a resposta de erro
+      throw new Error(`Erro na requisição: ${response.status} ${response.statusText}. Resposta: ${errorResponse}`);
     }
 
     const result = await response.json();
@@ -103,7 +104,7 @@ const updateSaldo = async (boardId, itemId, creditDebitValue) => {
       }
 
       // Converter o valor de "Crédito/Débito" para número
-      const creditDebitValueCurrent = parseFloat(JSON.parse(creditDebitColumn.value)) || 0;
+      const creditDebitValueCurrent = parseFloat(JSON.parse(creditDebitColumn.value)?.value || 0;
 
       // Calcular o novo saldo
       if (i === itemIndex) {
@@ -153,6 +154,7 @@ app.post('/webhook', async (req, res) => {
       return res.status(400).json({ error: "Dados incompletos!" });
     }
 
+    // Extrair o valor numérico do objeto value
     const creditDebitValue = value.value;
 
     if (columnId === "n_meros_mkmcm7c7") {
