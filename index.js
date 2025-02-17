@@ -103,7 +103,7 @@ const updateSaldo = async (boardId, itemId, creditDebitValue) => {
       }
 
       // Converter o valor do saldo anterior para número
-      saldoAnterior = parseFloat(JSON.parse(previousSaldoColumn.value)?.value || 0);
+      saldoAnterior = parseFloat(JSON.parse(previousSaldoColumn.value)?.value || 0;
     }
 
     const updates = [];
