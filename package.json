@@ -1,15 +1,13 @@
 {
-  "name": "minha-api-vercel",
-  "version": "1.0.0",
-  "main": "index.js",
-  "scripts": {
-    "start": "node api/atualizarSaldo.js"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
-  "dependencies": {
-    "axios": "^1.7.9"
-  }
+    "name": "minha-api-vercel",
+    "version": "1.0.0",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js"
+    },
+    "dependencies": {
+        "express": "^4.17.1",
+        "node-fetch": "^2.6.1",
+        "dotenv": "^10.0.0"
+    }
 }
