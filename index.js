@@ -6,8 +6,8 @@ const port = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Configuração do Token
-const MONDAY_API_TOKEN = process.env.MONDAY_API_TOKEN || "eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjQ2Mzk4MjA1OCwiYWFpIjoxESwidWlkIjo3MDc2NDQ5MiwiaWFkIjoiMjAyNS0wMS0yN1QyMjoyNDozMS4wMDBaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6Mjc0MjQyMjYsInJnbiI6InVzZTEifQ.ZmiPuR6zE_1jWletXG_8zLUhKizffHyRROHvX0h97o0";
+// Token de API (certifique-se de configurar a variável de ambiente)
+const MONDAY_API_TOKEN = process.env.MONDAY_API_TOKEN;
 
 // Função para chamar a API do monday.com
 const fetchMondayData = async (query) => {
@@ -20,15 +20,11 @@ const fetchMondayData = async (query) => {
       },
       body: JSON.stringify({ query }),
     });
-
     if (!response.ok) {
-      const errorResponse = await response.text(); // Captura a resposta de erro
+      const errorResponse = await response.text();
       throw new Error(`Erro na requisição: ${response.status} ${response.statusText}. Resposta: ${errorResponse}`);
     }
-
-    const result = await response.json();
-    return result;
-
+    return await response.json();
   } catch (error) {
     console.error("Erro na requisição:", error);
     throw error;
@@ -37,9 +33,9 @@ const fetchMondayData = async (query) => {
 
 // Função para buscar todos os itens do quadro com suas colunas
 const fetchAllItemsWithColumns = async (boardId) => {
-  const query = `{
-    boards(ids: ${boardId}) {
-      items_page {
+  const query = `
+    {
+      boards(ids: ${boardId}) {
         items {
           id
           column_values {
@@ -49,84 +45,87 @@ const fetchAllItemsWithColumns = async (boardId) => {
         }
       }
     }
-  }`;
-
+  `;
   const result = await fetchMondayData(query);
-
-  if (!result.data || !result.data.boards || !result.data.boards[0]?.items_page?.items) {
-    console.error("Resposta da API malformada:", JSON.stringify(result, null, 2));
+  if (!result.data || !result.data.boards || !result.data.boards[0].items) {
     throw new Error("Resposta da API malformada ou vazia");
   }
-
-  return result.data.boards[0].items_page.items;
+  return result.data.boards[0].items;
 };
 
+// Função para atualizar vários itens em lote usando a mutação change_multiple_column_values
+const updateItemsInBatch = async (boardId, updates) => {
+  // Para cada item, montamos uma mutação com alias (cada mutação atualiza apenas a coluna "Saldo")
+  const mutations = updates.map(({ itemId, saldo }) => {
+    // Constrói a string JSON para column_values conforme a documentação.
+    // Exemplo: {"n_meros_mkn1khzp": "1234"}
+    const columnValueStr = `{"n_meros_mkn1khzp": "${saldo}"}`;
+    // Escapa as aspas internas para ser inserido corretamente na query GraphQL.
+    const escapedValue = columnValueStr.replace(/"/g, '\\"');
+    return `
+      upd_${itemId}: change_multiple_column_values(
+        board_id: ${boardId},
+        item_id: ${itemId},
+        column_values: "${escapedValue}"
+      ) { id }
+    `;
+  }).join("\n");
+  
+  const query = `mutation { ${mutations} }`;
+  console.log("Query para batch:", query);
+  await fetchMondayData(query);
+};
+
+// Função para recalcular e atualizar o saldo cumulativo
 const updateSaldo = async (boardId, itemId, creditDebitValue) => {
   try {
-    // 1. Buscar todos os itens do quadro com suas colunas
+    // 1. Buscar todos os itens do quadro
     const items = await fetchAllItemsWithColumns(boardId);
+    
+    // Encontrar o índice do item alterado (pulseId recebido)
+    const idx = items.findIndex(item => item.id == itemId);
+    if (idx === -1) throw new Error("Item não encontrado");
 
-    // (Opcional) Ordenar os itens – aqui usamos o ID assumindo que IDs menores estão "acima"
-    items.sort((a, b) => a.id - b.id);
-
-    // 2. Encontrar o índice do item alterado
-    const itemIndex = items.findIndex(item => item.id == itemId);
-    if (itemIndex === -1) {
-      throw new Error(`Item com ID ${itemId} não encontrado no quadro!`);
-    }
-
-    // 3. Obter o saldo da linha anterior, se existir
+    // 2. Obter o saldo do item anterior (se existir)
     let saldoAnterior = 0;
-    if (itemIndex > 0) {
-      const previousItem = items[itemIndex - 1];
-      const previousSaldoColumn = previousItem.column_values.find(col => col.id === "n_meros_mkn1khzp");
-      if (!previousSaldoColumn) {
-        throw new Error("Coluna 'Saldo' não encontrada na linha anterior!");
+    if (idx > 0) {
+      const itemAnterior = items[idx - 1];
+      const colSaldo = itemAnterior.column_values.find(col => col.id === "n_meros_mkn1khzp");
+      if (colSaldo && colSaldo.value) {
+        try {
+          // Se o valor estiver no formato JSON, extraímos a propriedade "value"
+          saldoAnterior = parseFloat(JSON.parse(colSaldo.value)?.value) || 0;
+        } catch (e) {
+          saldoAnterior = parseFloat(colSaldo.value) || 0;
+        }
       }
-      let prevValue;
-      try {
-        // Tenta fazer o parse se o valor estiver em JSON
-        prevValue = JSON.parse(previousSaldoColumn.value)?.value;
-      } catch (e) {
-        prevValue = previousSaldoColumn.value;
-      }
-      saldoAnterior = parseFloat(prevValue) || 0;
     }
-
-    // Converter o valor de crédito/débito recebido para número
-    const changedValue = parseFloat(creditDebitValue);
-    if (isNaN(changedValue)) {
-      throw new Error("Valor de Crédito/Débito inválido");
-    }
-
+    
+    // 3. Iterar pelos itens a partir do item alterado e recalcular o saldo cumulativo
     const updates = [];
-
-    // 4. Iterar sobre os itens a partir do item alterado
-    for (let i = itemIndex; i < items.length; i++) {
+    for (let i = idx; i < items.length; i++) {
       const currentItem = items[i];
-      const creditDebitColumn = currentItem.column_values.find(col => col.id === "n_meros_mkmcm7c7");
-      if (!creditDebitColumn) {
-        throw new Error("Coluna 'Crédito/Débito' não encontrada!");
-      }
-      let currentCredit;
-      try {
-        // Tenta extrair o valor se estiver em formato JSON
-        currentCredit = JSON.parse(creditDebitColumn.value)?.value;
-      } catch (e) {
-        currentCredit = creditDebitColumn.value;
-      }
-      // Para o item alterado, use o novo valor; para os demais, some o valor que já estiver na coluna
-      if (i === itemIndex) {
-        saldoAnterior += changedValue;
+      const colCreditoDebito = currentItem.column_values.find(col => col.id === "n_meros_mkmcm7c7");
+      let valorCredito = 0;
+      if (i === idx) {
+        // Para o item alterado, usar o novo valor recebido no webhook
+        valorCredito = parseFloat(creditDebitValue);
       } else {
-        saldoAnterior += parseFloat(currentCredit) || 0;
+        // Para os demais, extrair o valor já presente na coluna "Crédito/Débito"
+        if (colCreditoDebito && colCreditoDebito.value) {
+          try {
+            valorCredito = parseFloat(JSON.parse(colCreditoDebito.value)?.value) || 0;
+          } catch (e) {
+            valorCredito = parseFloat(colCreditoDebito.value) || 0;
+          }
+        }
       }
+      saldoAnterior += valorCredito;
       updates.push({ itemId: currentItem.id, saldo: saldoAnterior });
     }
-
-    // 5. Atualizar os itens em lote com o valor formatado corretamente
+    
+    // 4. Atualizar os itens com os novos saldos
     await updateItemsInBatch(boardId, updates);
-
     return { success: true };
   } catch (error) {
     console.error("Erro em updateSaldo:", error);
@@ -134,63 +133,41 @@ const updateSaldo = async (boardId, itemId, creditDebitValue) => {
   }
 };
 
-// Exemplo de updateItemsInBatch – note que usamos JSON.stringify para enviar a mutação
-const updateItemsInBatch = async (boardId, updates) => {
-  const mutations = updates.map(({ itemId, saldo }) => `
-    change_column_value_${itemId}: change_column_value(
-      board_id: ${boardId},
-      item_id: ${itemId},
-      column_id: "n_meros_mkn1khzp", 
-      value: "${JSON.stringify({ value: saldo })}"
-    ) { id }
-  `).join('\n');
-
-  const query = `mutation { ${mutations} }`;
-  await fetchMondayData(query);
-};
-
-
 // Rota do webhook
 app.post('/webhook', async (req, res) => {
   try {
     console.log("Payload recebido:", JSON.stringify(req.body, null, 2));
-
-    req.setTimeout(120000);
-
+    
+    // Se houver um challenge (para verificação de webhook), retorne-o
     if (req.body.challenge) {
       return res.status(200).json({ challenge: req.body.challenge });
     }
-
+    
     const payload = req.body.event;
-
     if (!payload) {
-      console.error("Payload está indefinido.");
-      return res.status(400).json({ error: "Payload está indefinido." });
+      return res.status(400).json({ error: "Payload indefinido" });
     }
-
+    
+    // Extraindo os dados necessários do payload
     const { boardId, pulseId, columnId, value } = payload;
-
-    if (!boardId || !pulseId || !columnId || !value) {
-      return res.status(400).json({ error: "Dados incompletos!" });
+    if (!boardId || !pulseId || !columnId || value === undefined) {
+      return res.status(400).json({ error: "Dados incompletos" });
     }
-
-    // Extrair o valor numérico do objeto value
-    const creditDebitValue = value.value;
-
+    
+    // Se a coluna alterada for "Crédito/Débito" (ID: n_meros_mkmcm7c7), recalcula o saldo
     if (columnId === "n_meros_mkmcm7c7") {
-      await updateSaldo(boardId, pulseId, creditDebitValue);
+      // value.value contém o novo valor (ex: -3000)
+      await updateSaldo(boardId, pulseId, value.value);
       return res.json({ success: true });
     }
-
+    
     res.json({ message: "Coluna não monitorada." });
-
   } catch (error) {
     console.error("Erro no webhook:", error);
     res.status(500).json({ error: "Erro interno" });
   }
 });
 
-// Iniciar o servidor
 app.listen(port, () => {
   console.log(`Servidor rodando em http://localhost:${port}`);
 });
