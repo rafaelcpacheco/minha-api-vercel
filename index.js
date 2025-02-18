@@ -124,16 +124,17 @@ const updateSaldo = async (boardId, itemId, creditDebitValue) => {
 
       // Calcular o novo saldo
       if (i === itemIndex) {
-        // Para o item alterado, somar o valor passado como parâmetro ao saldo anterior
+        // Para o item alterado, somar o novo valor de "Crédito/Débito" ao saldo anterior
         saldoAnterior += creditDebitValue;
       } else {
-        // Para os demais itens, somar o valor da coluna "Crédito/Débito" ao saldo anterior
+        // Para os demais itens, somar o valor existente de "Crédito/Débito" ao saldo anterior
         saldoAnterior += creditDebitValueCurrent;
       }
 
       // Armazenar a atualização
       updates.push({ itemId: currentItem.id, saldo: saldoAnterior });
     }
+
 
     // Passo 4: Atualizar todos os itens em lote
     await updateItemsInBatch(boardId, updates);
