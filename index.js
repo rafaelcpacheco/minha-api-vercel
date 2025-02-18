@@ -32,7 +32,6 @@ const fetchMondayData = async (query) => {
   }
 };
 
-// Função para buscar todos os itens do quadro (usando items_page)
 const fetchAllItemsWithColumns = async (boardId) => {
   const query = `
     {
@@ -40,6 +39,8 @@ const fetchAllItemsWithColumns = async (boardId) => {
         items_page {
           items {
             id
+            // Se existir um campo que indique a posição, inclua-o aqui para ordenar (ex: position)
+            // position
             column_values {
               id
               value
@@ -53,7 +54,12 @@ const fetchAllItemsWithColumns = async (boardId) => {
   if (!result.data || !result.data.boards || !result.data.boards[0]?.items_page?.items) {
     throw new Error("Resposta da API malformada ou vazia");
   }
-  return result.data.boards[0].items_page.items;
+  let items = result.data.boards[0].items_page.items;
+  
+  // Se houver um campo de ordenação (ex.: position), descomente e ajuste:
+  // items.sort((a, b) => a.position - b.position);
+  
+  return items;
 };
 
 // Função para atualizar múltiplos itens em lote usando a mutação change_multiple_column_values
@@ -76,15 +82,13 @@ const updateItemsInBatch = async (boardId, updates) => {
   await fetchMondayData(query);
 };
 
-// Função para recalcular e atualizar o saldo cumulativo
 const updateSaldo = async (boardId, itemId, creditDebitValue) => {
   try {
-    // 1. Buscar todos os itens do quadro
     const items = await fetchAllItemsWithColumns(boardId);
     const idx = items.findIndex(item => item.id == itemId);
     if (idx === -1) throw new Error("Item não encontrado");
 
-    // 2. Obter o saldo do item anterior, se houver
+    // Obter o saldo do item anterior, se existir
     let saldoAnterior = 0;
     if (idx > 0) {
       const itemAnterior = items[idx - 1];
@@ -97,9 +101,10 @@ const updateSaldo = async (boardId, itemId, creditDebitValue) => {
         }
       }
     }
+    console.log(`Saldo do item anterior (item ${idx-1}): ${saldoAnterior}`);
 
     const updates = [];
-    // 3. Iterar pelos itens a partir do item alterado e recalcular o saldo
+    // Iterar pelos itens a partir do item alterado
     for (let i = idx; i < items.length; i++) {
       const currentItem = items[i];
       const colCreditoDebito = currentItem.column_values.find(col => col.id === "n_meros_mkmcm7c7");
@@ -114,10 +119,11 @@ const updateSaldo = async (boardId, itemId, creditDebitValue) => {
           valorCredito = parseFloat(colCreditoDebito.value) || 0;
         }
       }
+      console.log(`Item ${currentItem.id}: valorCredito=${valorCredito}, saldoAnterior antes da soma=${saldoAnterior}`);
       saldoAnterior += valorCredito;
+      console.log(`Novo saldo para item ${currentItem.id}: ${saldoAnterior}`);
       updates.push({ itemId: currentItem.id, saldo: saldoAnterior });
     }
-    // 4. Atualizar os itens em lote
     await updateItemsInBatch(boardId, updates);
     return { success: true };
   } catch (error) {
