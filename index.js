@@ -7,7 +7,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Configuração do Token
-const MONDAY_API_TOKEN = process.env.MONDAY_API_TOKEN;
+const MONDAY_API_TOKEN = process.env.MONDAY_API_TOKEN || "SEU_TOKEN_AQUI";
 
 // Função para chamar a API do monday.com
 const fetchMondayData = async (query) => {
@@ -22,143 +22,150 @@ const fetchMondayData = async (query) => {
     });
 
     if (!response.ok) {
-      const errorResponse = await response.text();
-      throw new Error(`Erro na requisição: ${response.status} ${response.statusText}. Resposta: ${errorResponse}`);
+      throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
     }
-    return await response.json();
+
+    const result = await response.json();
+    return result;
+
   } catch (error) {
     console.error("Erro na requisição:", error);
     throw error;
   }
 };
 
-const fetchAllItemsWithColumns = async (boardId) => {
-  const query = `
-    {
+// Função para buscar todos os itens do quadro com paginação
+const fetchAllItems = async (boardId) => {
+  let allItems = [];
+  let cursor = null;
+  let hasMore = true;
+
+  while (hasMore) {
+    const query = `{
       boards(ids: ${boardId}) {
-        items_page {
+        items_page (limit: 500 ${cursor ? `, cursor: "${cursor}"` : ''}) {
           items {
             id
-            // Se existir um campo que indique a posição, inclua-o aqui para ordenar (ex: position)
-            // position
             column_values {
               id
               value
             }
           }
+          cursor
         }
       }
+    }`;
+
+    const result = await fetchMondayData(query);
+
+    if (!result.data || !result.data.boards || !result.data.boards[0]?.items_page) {
+      console.error("Resposta da API malformada:", JSON.stringify(result, null, 2));
+      throw new Error("Resposta da API malformada ou vazia");
     }
-  `;
-  const result = await fetchMondayData(query);
-  if (!result.data || !result.data.boards || !result.data.boards[0]?.items_page?.items) {
-    throw new Error("Resposta da API malformada ou vazia");
+
+    const itemsPage = result.data.boards[0].items_page;
+
+    if (itemsPage.items && itemsPage.items.length > 0) {
+      allItems = allItems.concat(itemsPage.items);
+    }
+
+    if (itemsPage.cursor) {
+      cursor = itemsPage.cursor;
+    } else {
+      hasMore = false;
+    }
   }
-  let items = result.data.boards[0].items_page.items;
-  
-  // Se houver um campo de ordenação (ex.: position), descomente e ajuste:
-  // items.sort((a, b) => a.position - b.position);
-  
-  return items;
+
+  return allItems;
 };
 
-// Função para atualizar múltiplos itens em lote usando a mutação change_multiple_column_values
-const updateItemsInBatch = async (boardId, updates) => {
-  const mutations = updates.map(({ itemId, saldo }) => {
-    // Monta o JSON para atualizar a coluna "Saldo"
-    const columnValueStr = `{"n_meros_mkn1khzp": "${saldo}"}`;
-    const escapedValue = columnValueStr.replace(/"/g, '\\"');
-    return `
-      upd_${itemId}: change_multiple_column_values(
-        board_id: ${boardId},
-        item_id: ${itemId},
-        column_values: "${escapedValue}"
-      ) { id }
-    `;
-  }).join("\n");
+// Função para atualizar múltiplas colunas de um item
+const updateMultipleColumnValues = async (boardId, itemId, columnValues) => {
+  const columnValuesString = JSON.stringify(columnValues).replace(/"/g, '\\"');
+  const mutation = `mutation {
+    change_multiple_column_values(
+      board_id: ${boardId},
+      item_id: ${itemId},
+      column_values: "${columnValuesString}"
+    ) {
+      id
+    }
+  }`;
 
-  const query = `mutation { ${mutations} }`;
-  console.log("Query de batch:", query);
-  await fetchMondayData(query);
+  await fetchMondayData(mutation);
 };
 
-const updateSaldo = async (boardId, itemId, creditDebitValue) => {
+// Função para calcular e atualizar os saldos
+const updateSaldos = async (boardId, startItemId, creditDebitValue) => {
   try {
-    const items = await fetchAllItemsWithColumns(boardId);
-    const idx = items.findIndex(item => item.id == itemId);
-    if (idx === -1) throw new Error("Item não encontrado");
+    const items = await fetchAllItems(boardId);
 
-    // Obter o saldo do item anterior, se existir
+    const startIndex = items.findIndex(item => item.id == startItemId);
+    if (startIndex === -1) {
+      throw new Error(`Item com ID ${startItemId} não encontrado no quadro!`);
+    }
+
     let saldoAnterior = 0;
-    if (idx > 0) {
-      const itemAnterior = items[idx - 1];
-      const colSaldo = itemAnterior.column_values.find(col => col.id === "n_meros_mkn1khzp");
-      if (colSaldo && colSaldo.value) {
-        try {
-          saldoAnterior = parseFloat(JSON.parse(colSaldo.value)?.value) || 0;
-        } catch (e) {
-          saldoAnterior = parseFloat(colSaldo.value) || 0;
-        }
-      }
+    if (startIndex > 0) {
+      const previousItem = items[startIndex - 1];
+      const previousSaldoColumn = previousItem.column_values.find(col => col.id === "n_meros_mkn1khzp");
+      saldoAnterior = parseFloat(JSON.parse(previousSaldoColumn?.value || "0")) || 0;
     }
-    console.log(`Saldo do item anterior (item ${idx-1}): ${saldoAnterior}`);
 
-    const updates = [];
-    // Iterar pelos itens a partir do item alterado
-    for (let i = idx; i < items.length; i++) {
+    for (let i = startIndex; i < items.length; i++) {
       const currentItem = items[i];
-      const colCreditoDebito = currentItem.column_values.find(col => col.id === "n_meros_mkmcm7c7");
-      let valorCredito = 0;
-      if (i === idx) {
-        // Para o item alterado, usa o novo valor recebido
-        valorCredito = parseFloat(creditDebitValue);
-      } else if (colCreditoDebito && colCreditoDebito.value) {
-        try {
-          valorCredito = parseFloat(JSON.parse(colCreditoDebito.value)?.value) || 0;
-        } catch (e) {
-          valorCredito = parseFloat(colCreditoDebito.value) || 0;
-        }
-      }
-      console.log(`Item ${currentItem.id}: valorCredito=${valorCredito}, saldoAnterior antes da soma=${saldoAnterior}`);
-      saldoAnterior += valorCredito;
-      console.log(`Novo saldo para item ${currentItem.id}: ${saldoAnterior}`);
-      updates.push({ itemId: currentItem.id, saldo: saldoAnterior });
+      const creditDebitColumn = currentItem.column_values.find(col => col.id === "n_meros_mkmcm7c7");
+      const currentCreditDebitValue = i === startIndex ? creditDebitValue : parseFloat(JSON.parse(creditDebitColumn?.value || "0")) || 0;
+
+      saldoAnterior += currentCreditDebitValue;
+
+      const columnValues = {
+        n_meros_mkn1khzp: saldoAnterior.toString()
+      };
+
+      await updateMultipleColumnValues(boardId, currentItem.id, columnValues);
     }
-    await updateItemsInBatch(boardId, updates);
+
     return { success: true };
+
   } catch (error) {
-    console.error("Erro em updateSaldo:", error);
+    console.error("Erro em updateSaldos:", error);
     throw error;
   }
 };
 
-// Rota do webhook
 app.post('/webhook', async (req, res) => {
   try {
     console.log("Payload recebido:", JSON.stringify(req.body, null, 2));
-    
+
+    req.setTimeout(120000);
+
     if (req.body.challenge) {
       return res.status(200).json({ challenge: req.body.challenge });
     }
-    
+
     const payload = req.body.event;
+
     if (!payload) {
-      return res.status(400).json({ error: "Payload indefinido" });
+      console.error("Payload está indefinido.");
+      return res.status(400).json({ error: "Payload está indefinido." });
     }
-    
+
     const { boardId, pulseId, columnId, value } = payload;
-    if (!boardId || !pulseId || !columnId || value === undefined) {
-      return res.status(400).json({ error: "Dados incompletos" });
+
+    if (!boardId || !pulseId || !columnId || !value) {
+      return res.status(400).json({ error: "Dados incompletos!" });
     }
-    
-    // Se a coluna alterada for "Crédito/Débito"
+
+    const creditDebitValue = parseFloat(value.value) || 0;
+
     if (columnId === "n_meros_mkmcm7c7") {
-      // value.value contém o novo valor numérico
-      await updateSaldo(boardId, pulseId, value.value);
+      await updateSaldos(boardId, pulseId, creditDebitValue);
       return res.json({ success: true });
     }
-    
+
     res.json({ message: "Coluna não monitorada." });
+
   } catch (error) {
     console.error("Erro no webhook:", error);
     res.status(500).json({ error: "Erro interno" });
