@@ -123,11 +123,6 @@ const updateSaldos = async (boardId, startItemId, creditDebitValue) => {
         n_meros_mkn1khzp: saldoAnterior.toString()
       };
 
-      console.log(`Processando item no índice ${i}:`);
-      console.log(`boardId: ${boardId}`);
-      console.log(`currentItemId: ${currentItemId}`);
-      console.log(`columnValues:`, columnValues);
-
       await updateMultipleColumnValues(boardId, currentItem.id, columnValues);
     }
 
