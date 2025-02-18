@@ -61,91 +61,94 @@ const fetchAllItemsWithColumns = async (boardId) => {
   return result.data.boards[0].items_page.items;
 };
 
-// Função para atualizar múltiplos itens em lote
+const updateSaldo = async (boardId, itemId, creditDebitValue) => {
+  try {
+    // 1. Buscar todos os itens do quadro com suas colunas
+    const items = await fetchAllItemsWithColumns(boardId);
+
+    // (Opcional) Ordenar os itens – aqui usamos o ID assumindo que IDs menores estão "acima"
+    items.sort((a, b) => a.id - b.id);
+
+    // 2. Encontrar o índice do item alterado
+    const itemIndex = items.findIndex(item => item.id == itemId);
+    if (itemIndex === -1) {
+      throw new Error(`Item com ID ${itemId} não encontrado no quadro!`);
+    }
+
+    // 3. Obter o saldo da linha anterior, se existir
+    let saldoAnterior = 0;
+    if (itemIndex > 0) {
+      const previousItem = items[itemIndex - 1];
+      const previousSaldoColumn = previousItem.column_values.find(col => col.id === "n_meros_mkn1khzp");
+      if (!previousSaldoColumn) {
+        throw new Error("Coluna 'Saldo' não encontrada na linha anterior!");
+      }
+      let prevValue;
+      try {
+        // Tenta fazer o parse se o valor estiver em JSON
+        prevValue = JSON.parse(previousSaldoColumn.value)?.value;
+      } catch (e) {
+        prevValue = previousSaldoColumn.value;
+      }
+      saldoAnterior = parseFloat(prevValue) || 0;
+    }
+
+    // Converter o valor de crédito/débito recebido para número
+    const changedValue = parseFloat(creditDebitValue);
+    if (isNaN(changedValue)) {
+      throw new Error("Valor de Crédito/Débito inválido");
+    }
+
+    const updates = [];
+
+    // 4. Iterar sobre os itens a partir do item alterado
+    for (let i = itemIndex; i < items.length; i++) {
+      const currentItem = items[i];
+      const creditDebitColumn = currentItem.column_values.find(col => col.id === "n_meros_mkmcm7c7");
+      if (!creditDebitColumn) {
+        throw new Error("Coluna 'Crédito/Débito' não encontrada!");
+      }
+      let currentCredit;
+      try {
+        // Tenta extrair o valor se estiver em formato JSON
+        currentCredit = JSON.parse(creditDebitColumn.value)?.value;
+      } catch (e) {
+        currentCredit = creditDebitColumn.value;
+      }
+      // Para o item alterado, use o novo valor; para os demais, some o valor que já estiver na coluna
+      if (i === itemIndex) {
+        saldoAnterior += changedValue;
+      } else {
+        saldoAnterior += parseFloat(currentCredit) || 0;
+      }
+      updates.push({ itemId: currentItem.id, saldo: saldoAnterior });
+    }
+
+    // 5. Atualizar os itens em lote com o valor formatado corretamente
+    await updateItemsInBatch(boardId, updates);
+
+    return { success: true };
+  } catch (error) {
+    console.error("Erro em updateSaldo:", error);
+    throw error;
+  }
+};
+
+// Exemplo de updateItemsInBatch – note que usamos JSON.stringify para enviar a mutação
 const updateItemsInBatch = async (boardId, updates) => {
   const mutations = updates.map(({ itemId, saldo }) => `
     change_column_value_${itemId}: change_column_value(
       board_id: ${boardId},
       item_id: ${itemId},
       column_id: "n_meros_mkn1khzp", 
-      value: "${saldo}"
+      value: "${JSON.stringify({ value: saldo })}"
     ) { id }
   `).join('\n');
 
   const query = `mutation { ${mutations} }`;
-
   await fetchMondayData(query);
 };
 
-// Função principal para atualizar o saldo
-const updateSaldo = async (boardId, itemId, creditDebitValue) => {
-  try {
-    // Passo 1: Buscar todos os itens do quadro com suas colunas
-    const items = await fetchAllItemsWithColumns(boardId);
-
-    // Passo 2: Encontrar o índice do item alterado
-    const itemIndex = items.findIndex(item => item.id == itemId);
-
-    if (itemIndex === -1) {
-      throw new Error(`Item com ID ${itemId} não encontrado no quadro!`);
-    }
-
-    // Passo 3: Calcular os novos saldos em memória
-    let saldoAnterior = 0;
-
-    // Buscar o saldo da linha anterior (se existir)
-    if (itemIndex > 0) {
-      const previousItem = items[itemIndex - 1];
-      const previousSaldoColumn = previousItem.column_values.find(col => col.id === "n_meros_mkn1khzp");
-
-      if (!previousSaldoColumn) {
-        throw new Error("Coluna 'Saldo' não encontrada na linha anterior!");
-      }
-
-      // Converter o valor do saldo anterior para número
-      saldoAnterior = parseFloat(JSON.parse(previousSaldoColumn.value)?.value || 0);
-    }
-
-    const updates = [];
-
-    // Iterar sobre os itens a partir do item alterado
-    for (let i = itemIndex; i < items.length; i++) {
-      const currentItem = items[i];
-
-      // Encontrar a coluna "Crédito/Débito"
-      const creditDebitColumn = currentItem.column_values.find(col => col.id === "n_meros_mkmcm7c7");
-
-      if (!creditDebitColumn) {
-        throw new Error("Coluna 'Crédito/Débito' não encontrada!");
-      }
-
-      // Converter o valor de "Crédito/Débito" para número
-      const creditDebitValueCurrent = parseFloat(JSON.parse(creditDebitColumn.value)?.value || 0);
-
-      // Calcular o novo saldo
-      if (i === itemIndex) {
-        // Para o item alterado, somar o novo valor de "Crédito/Débito" ao saldo anterior
-        saldoAnterior += creditDebitValue;
-      } else {
-        // Para os demais itens, somar o valor existente de "Crédito/Débito" ao saldo anterior
-        saldoAnterior += creditDebitValueCurrent;
-      }
-
-      // Armazenar a atualização
-      updates.push({ itemId: currentItem.id, saldo: saldoAnterior });
-    }
-
-
-    // Passo 4: Atualizar todos os itens em lote
-    await updateItemsInBatch(boardId, updates);
-
-    return { success: true };
-
-  } catch (error) {
-    console.error("Erro em updateSaldo:", error);
-    throw error;
-  }
-};
 
 // Rota do webhook
 app.post('/webhook', async (req, res) => {
