@@ -166,6 +166,11 @@ const calculateAndUpdateReceitaBruta = async () => {
 // Rota para acionar a atualização da Receita Bruta
 app.post('/update-receita-bruta', async (req, res) => {
   try {
+
+    if (req.body.challenge) {
+        return res.status(200).json({ challenge: req.body.challenge });
+    }
+
     await calculateAndUpdateReceitaBruta();
     res.json({ success: true });
 
