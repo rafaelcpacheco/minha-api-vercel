@@ -163,20 +163,33 @@ const calculateAndUpdateReceitaBruta = async () => {
 
 // Rota para acionar a atualização da Receita Bruta
 app.post('/update-receita-bruta', async (req, res) => {
-  try {
-
-    if (req.body.challenge) {
+    try {
+      console.log("Payload recebido:", JSON.stringify(req.body, null, 2));
+  
+      req.setTimeout(120000);
+  
+      // Verifica se é um desafio do monday.com
+      if (req.body.challenge) {
         return res.status(200).json({ challenge: req.body.challenge });
+      }
+  
+      // Processa o payload
+      const payload = req.body.event;
+  
+      if (!payload) {
+        console.error("Payload está indefinido.");
+        return res.status(400).json({ error: "Payload está indefinido." });
+      }
+  
+      // Executa a lógica de atualização da Receita Bruta
+      await calculateAndUpdateReceitaBruta();
+      res.json({ success: true });
+  
+    } catch (error) {
+      console.error("Erro na rota /update-receita-bruta:", error);
+      res.status(500).json({ error: "Erro interno" });
     }
-
-    await calculateAndUpdateReceitaBruta();
-    res.json({ success: true });
-
-  } catch (error) {
-    console.error("Erro na rota /update-receita-bruta:", error);
-    res.status(500).json({ error: "Erro interno" });
-  }
-});
+  });
 
 // Iniciar o servidor
 app.listen(port, () => {
