@@ -1,5 +1,3 @@
-// receitaBruta.js
-
 const fetch = require('node-fetch');
 const express = require('express');
 
@@ -9,7 +7,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Configuração do Token
-const MONDAY_API_TOKEN = process.env.MONDAY_API_TOKEN || "SEU_TOKEN_AQUI";
+const MONDAY_API_TOKEN = process.env.MONDAY_API_TOKEN || "eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjQ4Mjc0NjE5NywiYWFpIjoxMSwidWlkIjo3MDc2NDQ5MiwiaWFkIjoiMjAyNS0wMy0wOFQxMzo1MzoyOS42NjBaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6Mjc0MjQyMjYsInJnbiI6InVzZTEifQ.wIqpbMeTwKYufgZEDp8oqE1l8XN5OnFs23X9Zw08l5c";
 
 // IDs fixos dos quadros e colunas
 const CURRENT_YEAR_BOARD_ID = "8567877886"; // Substitua pelo ID do quadro do ano atual
