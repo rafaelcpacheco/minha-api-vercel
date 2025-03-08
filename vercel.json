@@ -4,12 +4,20 @@
     {
       "src": "index.js",
       "use": "@vercel/node"
+    },
+    {
+      "src": "receitaBruta2025.js",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
     {
-      "src": "/(.*)",
+      "src": "/webhook",
       "dest": "index.js"
+    },
+    {
+      "src": "/update-receita-bruta",
+      "dest": "receitaBruta2025.js"
     }
   ]
 }
