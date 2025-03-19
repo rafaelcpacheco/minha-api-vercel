@@ -137,6 +137,12 @@ const updateSaldos = async (boardId, startItemId, creditDebitValue) => {
 // Função para mover subitens para outro quadro
 const moveSubitemsToAnotherBoard = async (sourceBoardId, sourceItemId, targetBoardId, targetGroupId) => {
   try {
+    console.log("Iniciando movimentação de subitens...");
+    console.log("sourceBoardId:", sourceBoardId);
+    console.log("sourceItemId:", sourceItemId);
+    console.log("targetBoardId:", targetBoardId);
+    console.log("targetGroupId:", targetGroupId);
+
     // Busca os subitens do item no quadro de origem
     const query = `{
       boards(ids: ${sourceBoardId}) {
@@ -153,14 +159,20 @@ const moveSubitemsToAnotherBoard = async (sourceBoardId, sourceItemId, targetBoa
       }
     }`;
 
+    console.log("Query para buscar subitens:", query);
+
     const result = await fetchMondayData(query);
 
+    console.log("Resposta da API ao buscar subitens:", JSON.stringify(result, null, 2));
+
     if (!result.data || !result.data.boards || !result.data.boards[0]?.items || !result.data.boards[0].items[0]?.subitems) {
-      console.error("Resposta da API malformada:", JSON.stringify(result, null, 2));
+      console.error("Resposta da API malformada ou sem subitens.");
       throw new Error("Resposta da API malformada ou vazia");
     }
 
     const subitems = result.data.boards[0].items[0].subitems;
+
+    console.log("Subitens encontrados:", JSON.stringify(subitems, null, 2));
 
     // Move cada subitem para o quadro de destino
     for (const subitem of subitems) {
@@ -170,9 +182,14 @@ const moveSubitemsToAnotherBoard = async (sourceBoardId, sourceItemId, targetBoa
         }
       }`;
 
-      await fetchMondayData(mutation);
+      console.log("Mutation para mover subitem:", mutation);
+
+      const mutationResult = await fetchMondayData(mutation);
+
+      console.log("Resposta da API ao mover subitem:", JSON.stringify(mutationResult, null, 2));
     }
 
+    console.log("Subitens movidos com sucesso.");
     return { success: true };
 
   } catch (error) {
@@ -228,6 +245,7 @@ app.post('/moveSubItensReembolsoDespesas', async (req, res) => {
     req.setTimeout(120000);
 
     if (req.body.challenge) {
+      console.log("Challenge recebido:", req.body.challenge);
       return res.status(200).json({ challenge: req.body.challenge });
     }
 
@@ -241,18 +259,24 @@ app.post('/moveSubItensReembolsoDespesas', async (req, res) => {
     const { boardId, pulseId, columnId, value } = payload;
 
     if (!boardId || !pulseId || !columnId || !value) {
+      console.error("Dados incompletos no payload:", { boardId, pulseId, columnId, value });
       return res.status(400).json({ error: "Dados incompletos!" });
     }
+
+    console.log("Dados do payload:", { boardId, pulseId, columnId, value });
 
     // Verifica se o status mudou para "Aprovado"
     if (columnId === "status_mkmy5rzh" && value.index === 1) { // Supondo que o índice 1 seja "Aprovado"
       const targetBoardId = 8738136631; // ID do quadro de destino
       const targetGroupId = "new_group_mkmy776h"; // ID do grupo "Em Aprovação" no quadro de destino
 
+      console.log("Status mudou para 'Aprovado'. Iniciando movimentação de subitens...");
+
       await moveSubitemsToAnotherBoard(boardId, pulseId, targetBoardId, targetGroupId);
       return res.json({ success: true });
     }
 
+    console.log("Coluna não monitorada ou status não alterado para 'Aprovado'.");
     res.json({ message: "Coluna não monitorada ou status não alterado para Aprovado." });
 
   } catch (error) {
