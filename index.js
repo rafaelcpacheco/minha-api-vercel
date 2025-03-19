@@ -134,6 +134,54 @@ const updateSaldos = async (boardId, startItemId, creditDebitValue) => {
   }
 };
 
+// Função para mover subitens para outro quadro
+const moveSubitemsToAnotherBoard = async (sourceBoardId, sourceItemId, targetBoardId, targetGroupId) => {
+  try {
+    // Busca os subitens do item no quadro de origem
+    const query = `{
+      boards(ids: ${sourceBoardId}) {
+        items(ids: ${sourceItemId}) {
+          subitems {
+            id
+            name
+            column_values {
+              id
+              value
+            }
+          }
+        }
+      }
+    }`;
+
+    const result = await fetchMondayData(query);
+
+    if (!result.data || !result.data.boards || !result.data.boards[0]?.items || !result.data.boards[0].items[0]?.subitems) {
+      console.error("Resposta da API malformada:", JSON.stringify(result, null, 2));
+      throw new Error("Resposta da API malformada ou vazia");
+    }
+
+    const subitems = result.data.boards[0].items[0].subitems;
+
+    // Move cada subitem para o quadro de destino
+    for (const subitem of subitems) {
+      const mutation = `mutation {
+        move_item_to_group (item_id: ${subitem.id}, group_id: "${targetGroupId}") {
+          id
+        }
+      }`;
+
+      await fetchMondayData(mutation);
+    }
+
+    return { success: true };
+
+  } catch (error) {
+    console.error("Erro ao mover subitens:", error);
+    throw error;
+  }
+};
+
+// Endpoint original (webhook)
 app.post('/webhook', async (req, res) => {
   try {
     console.log("Payload recebido:", JSON.stringify(req.body, null, 2));
@@ -172,6 +220,48 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
+// Novo endpoint para mover subitens
+app.post('/moveSubItensReembolsoDespesas', async (req, res) => {
+  try {
+    console.log("Payload recebido:", JSON.stringify(req.body, null, 2));
+
+    req.setTimeout(120000);
+
+    if (req.body.challenge) {
+      return res.status(200).json({ challenge: req.body.challenge });
+    }
+
+    const payload = req.body.event;
+
+    if (!payload) {
+      console.error("Payload está indefinido.");
+      return res.status(400).json({ error: "Payload está indefinido." });
+    }
+
+    const { boardId, pulseId, columnId, value } = payload;
+
+    if (!boardId || !pulseId || !columnId || !value) {
+      return res.status(400).json({ error: "Dados incompletos!" });
+    }
+
+    // Verifica se o status mudou para "Aprovado"
+    if (columnId === "status_mkmy5rzh" && value.index === 1) { // Supondo que o índice 1 seja "Aprovado"
+      const targetBoardId = 8738136631; // ID do quadro de destino
+      const targetGroupId = "new_group_mkmy776h"; // ID do grupo "Em Aprovação" no quadro de destino
+
+      await moveSubitemsToAnotherBoard(boardId, pulseId, targetBoardId, targetGroupId);
+      return res.json({ success: true });
+    }
+
+    res.json({ message: "Coluna não monitorada ou status não alterado para Aprovado." });
+
+  } catch (error) {
+    console.error("Erro no endpoint moveSubItensReembolsoDespesas:", error);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+
+// Inicia o servidor
 app.listen(port, () => {
   console.log(`Servidor rodando em http://localhost:${port}`);
 });
