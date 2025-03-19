@@ -237,7 +237,7 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
-// Novo endpoint para mover subitens
+// Endpoint para mover subitens
 app.post('/moveSubItensReembolsoDespesas', async (req, res) => {
   try {
     console.log("Payload recebido:", JSON.stringify(req.body, null, 2));
@@ -266,7 +266,7 @@ app.post('/moveSubItensReembolsoDespesas', async (req, res) => {
     console.log("Dados do payload:", { boardId, pulseId, columnId, value });
 
     // Verifica se o status mudou para "Aprovado"
-    if (columnId === "status_mkmy5rzh" && value.index === 1) { // Supondo que o índice 1 seja "Aprovado"
+    if (columnId === "status_mkmy5rzh" && value.label.index === 1) { // Corrigido aqui
       const targetBoardId = 8738136631; // ID do quadro de destino
       const targetGroupId = "new_group_mkmy776h"; // ID do grupo "Em Aprovação" no quadro de destino
 
