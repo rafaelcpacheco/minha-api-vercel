@@ -145,7 +145,7 @@ const moveSubitemsToAnotherBoard = async (sourceBoardId, sourceItemId, targetBoa
 
     // Query GraphQL com variável
     const query = `
-      query getSubitems($sourceBoardId: [Int!]) {
+      query getSubitems($sourceBoardId: [ID!]) {
         boards(ids: $sourceBoardId) {
           items_page(limit: 20) {
             items {
@@ -165,9 +165,9 @@ const moveSubitemsToAnotherBoard = async (sourceBoardId, sourceItemId, targetBoa
       }
     `;
 
-    // Variáveis (convertendo sourceBoardId para array de inteiros)
+    // Variáveis (convertendo sourceBoardId para array de strings)
     const variables = {
-      sourceBoardId: [parseInt(sourceBoardId)], // Garante que é um array de inteiros
+      sourceBoardId: [String(sourceBoardId)], // Garante que é um array de strings
     };
 
     console.log("Query e variáveis:", { query, variables });
