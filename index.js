@@ -10,7 +10,7 @@ app.use(express.urlencoded({ extended: true }));
 const MONDAY_API_TOKEN = process.env.MONDAY_API_TOKEN || "SEU_TOKEN_AQUI";
 
 // Função para chamar a API do monday.com
-const fetchMondayData = async (query) => {
+const fetchMondayData = async (query, variables = {}) => {
   try {
     const response = await fetch("https://api.monday.com/v2", {
       method: "POST",
@@ -18,21 +18,23 @@ const fetchMondayData = async (query) => {
         "Authorization": MONDAY_API_TOKEN,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ query }),
+      body: JSON.stringify({ query, variables }),
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
+      console.error("Erro na requisição:", data.errors || data);
       throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
     }
 
-    const result = await response.json();
-    return result;
-
+    return data;
   } catch (error) {
     console.error("Erro na requisição:", error);
     throw error;
   }
 };
+
 
 // Função para buscar todos os itens do quadro com paginação
 const fetchAllItems = async (boardId) => {
