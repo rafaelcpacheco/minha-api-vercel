@@ -150,7 +150,7 @@ const moveSubitemsToAnotherBoard = async (sourceBoardId, sourceItemId, targetBoa
 
     // Query para buscar subitens
     const query = `
-      query ($boardId: Int!) {
+      query {
         boards(ids: [$boardId]) {
           items_page(limit: 10) {
             items {
