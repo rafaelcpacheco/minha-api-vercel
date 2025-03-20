@@ -136,27 +136,17 @@ const updateSaldos = async (boardId, startItemId, creditDebitValue) => {
   }
 };
 
-const replaceVariablesInQuery = (query, variables) => {
-  let formattedQuery = query;
-
-  for (const [key, value] of Object.entries(variables)) {
-    const regex = new RegExp(`\\$${key}`, "g");
-    formattedQuery = formattedQuery.replace(regex, JSON.stringify(value));
-  }
-
-  return formattedQuery;
-};
-
 const moveSubitemsToAnotherBoard = async (sourceBoardId, sourceItemId, targetBoardId, targetGroupId) => {
   try {
     console.log("sourceBoardId:", sourceBoardId);
     console.log("sourceItemId:", sourceItemId);
     console.log("targetBoardId:", targetBoardId);
     console.log("targetGroupId:", targetGroupId);
+
     // Query para buscar subitens
     const query = `
-      query  {
-        boards(ids: ${sourceBoardId}) {
+      query($sourceBoardId: Int!) {
+        boards(ids: [$sourceBoardId]) {
           items_page(limit: 20) {
             items {
               name
@@ -175,16 +165,8 @@ const moveSubitemsToAnotherBoard = async (sourceBoardId, sourceItemId, targetBoa
       }
     `;
 
-    //const variables = {
-    //  boardId: sourceBoardId,
-    //};
-
-    // Substitui as variáveis na query
-    //const formattedQuery = replaceVariablesInQuery(query, variables);
-
-    console.log("Query para buscar subitens:", query);
-
-    const result = await fetchMondayData(query, sourceBoardId);
+    // Chama a API passando a variável sourceBoardId
+    const result = await fetchMondayData(query, { sourceBoardId });
 
     console.log("Resposta da API ao buscar subitens:", JSON.stringify(result, null, 2));
 
@@ -220,6 +202,7 @@ const moveSubitemsToAnotherBoard = async (sourceBoardId, sourceItemId, targetBoa
     throw error;
   }
 };
+
 
 // Endpoint original (webhook)
 app.post('/webhook', async (req, res) => {
