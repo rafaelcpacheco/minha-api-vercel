@@ -149,11 +149,14 @@ const replaceVariablesInQuery = (query, variables) => {
 
 const moveSubitemsToAnotherBoard = async (sourceBoardId, sourceItemId, targetBoardId, targetGroupId) => {
   try {
-
+    console.log("sourceBoardId:", sourceBoardId);
+    console.log("sourceItemId:", sourceItemId);
+    console.log("targetBoardId:", targetBoardId);
+    console.log("targetGroupId:", targetGroupId);
     // Query para buscar subitens
     const query = `
       query  {
-        boards(ids: ${boardId}) {
+        boards(ids: ${sourceBoardId}) {
           items_page(limit: 20) {
             items {
               name
@@ -172,16 +175,16 @@ const moveSubitemsToAnotherBoard = async (sourceBoardId, sourceItemId, targetBoa
       }
     `;
 
-    const variables = {
-      boardId: sourceBoardId,
-    };
+    //const variables = {
+    //  boardId: sourceBoardId,
+    //};
 
     // Substitui as variáveis na query
-    const formattedQuery = replaceVariablesInQuery(query, variables);
+    //const formattedQuery = replaceVariablesInQuery(query, variables);
 
     console.log("Query para buscar subitens:", formattedQuery);
 
-    const result = await fetchMondayData(query, variables);
+    const result = await fetchMondayData(query, sourceBoardId);
 
     console.log("Resposta da API ao buscar subitens:", JSON.stringify(result, null, 2));
 
