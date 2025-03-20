@@ -143,9 +143,8 @@ const moveSubitemsToAnotherBoard = async (sourceBoardId, sourceItemId, targetBoa
     console.log("targetBoardId:", targetBoardId);
     console.log("targetGroupId:", targetGroupId);
 
-    // Query para buscar subitens
     const query = `
-      query($sourceBoardId: Int!) {
+      query getSubitems($sourceBoardId: Int!) {
         boards(ids: [$sourceBoardId]) {
           items_page(limit: 20) {
             items {
@@ -165,8 +164,13 @@ const moveSubitemsToAnotherBoard = async (sourceBoardId, sourceItemId, targetBoa
       }
     `;
 
+    const variables = {
+      sourceBoardId: sourceBoardId, // O valor da variável sourceBoardId será passado aqui
+    };
+
+
     // Chama a API passando a variável sourceBoardId
-    const result = await fetchMondayData(query, { sourceBoardId });
+    const result = await fetchMondayData(query, variables);
 
     console.log("Resposta da API ao buscar subitens:", JSON.stringify(result, null, 2));
 
