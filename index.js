@@ -137,32 +137,37 @@ const updateSaldos = async (boardId, startItemId, creditDebitValue) => {
 // Função para mover subitens para outro quadro
 const moveSubitemsToAnotherBoard = async (sourceBoardId, sourceItemId, targetBoardId, targetGroupId) => {
   try {
-    // Query atualizada para buscar subitens com paginação
-    const query = `{
-      boards(ids: ${sourceBoardId}) {
-        items_page(limit: 500, ids: [${sourceItemId}]) {
-          items {
-            id
-            name
-            subitems {
-              id
+   
+
+    // Query para buscar subitens
+    const query = `
+      query ($boardId: Int!) {
+        boards(ids: [$boardId]) {
+          items_page(limit: 10) {
+            items {
               name
-              column_values {
+              subitems {
                 id
-                title
-                text
-                value
+                name
+                column_values {
+                  id
+                  text
+                  value
+                }
               }
             }
           }
-          cursor
         }
       }
-    }`;
+    `;
 
-    console.log("Query para buscar subitens:", query);
+    const variables = {
+      boardId: sourceBoardId,
+    };
 
-    const result = await fetchMondayData(query);
+    console.log("Query para buscar subitens:", query, variables);
+
+    const result = await fetchMondayData(query, variables);
 
     console.log("Resposta da API ao buscar subitens:", JSON.stringify(result, null, 2));
 
