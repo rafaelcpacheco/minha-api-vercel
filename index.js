@@ -281,7 +281,7 @@ app.post('/moveSubItensReembolsoDespesas', async (req, res) => {
     // Verifica se o status mudou para "Aprovado"
     if (columnId === "status_mkmy5rzh" && value.label.index === 1) { // Corrigido aqui
       const targetBoardId = 8738136631; // ID do quadro de destino
-      const targetGroupId = "new_group_mkmy776h"; // ID do grupo "Em Aprovação" no quadro de destino
+      const targetGroupId = 8738792354; // ID do grupo "Em Aprovação" no quadro de destino
 
       console.log("Status mudou para 'Aprovado'. Iniciando movimentação de subitens...");
 
