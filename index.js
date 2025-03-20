@@ -137,24 +137,25 @@ const updateSaldos = async (boardId, startItemId, creditDebitValue) => {
 // Função para mover subitens para outro quadro
 const moveSubitemsToAnotherBoard = async (sourceBoardId, sourceItemId, targetBoardId, targetGroupId) => {
   try {
-    console.log("Iniciando movimentação de subitens...");
-    console.log("sourceBoardId:", sourceBoardId);
-    console.log("sourceItemId:", sourceItemId);
-    console.log("targetBoardId:", targetBoardId);
-    console.log("targetGroupId:", targetGroupId);
-
-    // Busca os subitens do item no quadro de origem
+    // Query atualizada para buscar subitens com paginação
     const query = `{
       boards(ids: ${sourceBoardId}) {
-        items(ids: ${sourceItemId}) {
-          subitems {
+        items_page(limit: 500, ids: [${sourceItemId}]) {
+          items {
             id
             name
-            column_values {
+            subitems {
               id
-              value
+              name
+              column_values {
+                id
+                title
+                text
+                value
+              }
             }
           }
+          cursor
         }
       }
     }`;
@@ -165,12 +166,12 @@ const moveSubitemsToAnotherBoard = async (sourceBoardId, sourceItemId, targetBoa
 
     console.log("Resposta da API ao buscar subitens:", JSON.stringify(result, null, 2));
 
-    if (!result.data || !result.data.boards || !result.data.boards[0]?.items || !result.data.boards[0].items[0]?.subitems) {
+    if (!result.data || !result.data.boards || !result.data.boards[0]?.items_page?.items) {
       console.error("Resposta da API malformada ou sem subitens.");
       throw new Error("Resposta da API malformada ou vazia");
     }
 
-    const subitems = result.data.boards[0].items[0].subitems;
+    const subitems = result.data.boards[0].items_page.items[0].subitems;
 
     console.log("Subitens encontrados:", JSON.stringify(subitems, null, 2));
 
