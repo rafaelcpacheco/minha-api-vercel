@@ -134,10 +134,19 @@ const updateSaldos = async (boardId, startItemId, creditDebitValue) => {
   }
 };
 
-// Função para mover subitens para outro quadro
+const replaceVariablesInQuery = (query, variables) => {
+  let formattedQuery = query;
+
+  for (const [key, value] of Object.entries(variables)) {
+    const regex = new RegExp(`\\$${key}`, "g");
+    formattedQuery = formattedQuery.replace(regex, JSON.stringify(value));
+  }
+
+  return formattedQuery;
+};
+
 const moveSubitemsToAnotherBoard = async (sourceBoardId, sourceItemId, targetBoardId, targetGroupId) => {
   try {
-   
 
     // Query para buscar subitens
     const query = `
@@ -165,7 +174,10 @@ const moveSubitemsToAnotherBoard = async (sourceBoardId, sourceItemId, targetBoa
       boardId: sourceBoardId,
     };
 
-    console.log("Query para buscar subitens:", query, variables);
+    // Substitui as variáveis na query
+    const formattedQuery = replaceVariablesInQuery(query, variables);
+
+    console.log("Query para buscar subitens:", formattedQuery);
 
     const result = await fetchMondayData(query, variables);
 
