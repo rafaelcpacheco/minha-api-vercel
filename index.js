@@ -30,7 +30,7 @@ const fetchMondayData = async (query, variables = {}) => {
 
     return data;
   } catch (error) {
-    console.error("Erro na requisição:", error + " - " + variables);
+    console.error("Erro na requisição:", error);
     throw error;
   }
 };
@@ -152,8 +152,8 @@ const moveSubitemsToAnotherBoard = async (sourceBoardId, sourceItemId, targetBoa
 
     // Query para buscar subitens
     const query = `
-      query ($boardId: Int!) {
-        boards(ids: [$boardId]) {
+      query  {
+        boards(ids: ${boardId}) {
           items_page(limit: 20) {
             items {
               name
