@@ -182,7 +182,7 @@ const moveSubitemsToAnotherBoard = async (sourceBoardId, sourceItemId, targetBoa
     // Substitui as variáveis na query
     //const formattedQuery = replaceVariablesInQuery(query, variables);
 
-    console.log("Query para buscar subitens:", formattedQuery);
+    console.log("Query para buscar subitens:", query);
 
     const result = await fetchMondayData(query, sourceBoardId);
 
