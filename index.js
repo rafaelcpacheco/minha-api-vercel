@@ -203,6 +203,10 @@ app.post('/exportaSubitemsAgrupados', async (req, res) => {
   try {
     console.log("Payload recebido:", JSON.stringify(req.body, null, 2));
 
+    if (req.body.challenge) {
+      return res.status(200).json({ challenge: req.body.challenge });
+    }
+    
     const { pulseId } = req.body.event;
     if (!pulseId) {
       console.error("ID do item não fornecido no payload.");
