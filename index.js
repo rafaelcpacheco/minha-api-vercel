@@ -172,8 +172,13 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
-// Função para capturar os subitens de um item específico
 const fetchSubitems = async (itemId) => {
+  console.log(`⏳ Aguardando 3 segundos antes de buscar os subitens do item ${itemId}...`);
+
+  await new Promise(resolve => setTimeout(resolve, 3000));
+
+  console.log(`🔎 Buscando subitens do item ${itemId} agora...`);
+
   const query = `{
     items(ids: ${itemId}) {
       subitems {
@@ -189,14 +194,22 @@ const fetchSubitems = async (itemId) => {
 
   const result = await fetchMondayData(query);
 
+  console.log(`Resposta completa da API para o item ${itemId}:`, JSON.stringify(result, null, 2));
+
   if (!result.data || !result.data.items || !result.data.items[0]?.subitems) {
     console.error("Resposta da API malformada ou sem subitens:", JSON.stringify(result, null, 2));
     return [];
   }
 
-  console.log(`Subitens capturados para o item ${itemId}:`, JSON.stringify(result.data.items[0].subitems, null, 2));
-  return result.data.items[0].subitems;
+  let subitems = result.data.items[0].subitems || [];
+
+  // Filtra valores nulos, caso existam
+  subitems = subitems.filter(Boolean);
+
+  console.log(`Subitens capturados para o item ${itemId}:`, JSON.stringify(subitems, null, 2));
+  return subitems;
 };
+
 
 // Endpoint para exportar subitens agrupados
 app.post('/exportaSubitemsAgrupados', async (req, res) => {
@@ -206,7 +219,7 @@ app.post('/exportaSubitemsAgrupados', async (req, res) => {
     if (req.body.challenge) {
       return res.status(200).json({ challenge: req.body.challenge });
     }
-    
+
     const { pulseId } = req.body.event;
     if (!pulseId) {
       console.error("ID do item não fornecido no payload.");
