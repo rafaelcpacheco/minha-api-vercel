@@ -173,41 +173,41 @@ app.post('/webhook', async (req, res) => {
 });
 
 const groupSubitems = (subitems) => {
-  // Cria um objeto para armazenar o agrupamento
   const grouped = {};
 
-  // Itera sobre os subitens
   subitems.forEach(subitem => {
-    // Obtém o valor de 'name' e 'numbers_mkmxqbg4'
     const name = subitem.name;
-    const numbers_mkmxqbg4 = subitem.column_values.find(col => col.id === 'numbers_mkmxqbg4')?.value;
+    let numbers_mkmxqbg4 = subitem.column_values.find(col => col.id === 'numbers_mkmxqbg4')?.value;
 
     if (!numbers_mkmxqbg4) {
       console.warn(`⚠️ Subitem sem o valor 'numbers_mkmxqbg4' encontrado: ${JSON.stringify(subitem)}`);
-      return; // Se não tiver o valor 'numbers_mkmxqbg4', ignora
+      return;
     }
 
-    // Usa uma chave combinando 'name' e 'numbers_mkmxqbg4' para o agrupamento
-    const key = `${name}_${numbers_mkmxqbg4}`;
+    // Remove aspas duplas caso o valor esteja como string JSON
+    numbers_mkmxqbg4 = Number(numbers_mkmxqbg4.replace(/"/g, ''));
 
-    // Se a chave ainda não existir no agrupamento, cria uma nova chave
-    if (!grouped[key]) {
-      grouped[key] = [];
+    if (isNaN(numbers_mkmxqbg4)) {
+      console.warn(`⚠️ Valor inválido em 'numbers_mkmxqbg4': ${numbers_mkmxqbg4}`);
+      return;
     }
 
-    // Adiciona o subitem ao grupo
-    grouped[key].push(subitem);
+    // Usa apenas o nome como chave para o agrupamento
+    if (!grouped[name]) {
+      grouped[name] = { total: 0, subitems: [] };
+    }
+
+    // Soma os valores do campo numbers_mkmxqbg4
+    grouped[name].total += numbers_mkmxqbg4;
+    grouped[name].subitems.push(subitem);
   });
 
   return grouped;
 };
 
+
 const fetchSubitems = async (itemId) => {
-  console.log(`⏳ Aguardando 3 segundos antes de buscar os subitens do item ${itemId}...`);
-
   await new Promise(resolve => setTimeout(resolve, 3000));
-
-  console.log(`🔎 Buscando subitens do item ${itemId} agora...`);
 
   const query = `{
     items(ids: ${itemId}) {
@@ -224,8 +224,6 @@ const fetchSubitems = async (itemId) => {
 
   const result = await fetchMondayData(query);
 
-  console.log(`Resposta completa da API para o item ${itemId}:`, JSON.stringify(result, null, 2));
-
   if (!result.data || !result.data.items || !result.data.items[0]?.subitems) {
     console.error("Resposta da API malformada ou sem subitens:", JSON.stringify(result, null, 2));
     return [];
@@ -235,8 +233,6 @@ const fetchSubitems = async (itemId) => {
 
   // Filtra valores nulos, caso existam
   subitems = subitems.filter(Boolean);
-
-  console.log(`Subitens capturados para o item ${itemId}:`, JSON.stringify(subitems, null, 2));
 
   const groupedSubitems = groupSubitems(subitems);
 
@@ -260,7 +256,6 @@ app.post('/exportaSubitemsAgrupados', async (req, res) => {
       return res.status(400).json({ error: "ID do item não fornecido no payload." });
     }
 
-    console.log(`Buscando subitens para o item ${pulseId}...`);
     const subitems = await fetchSubitems(pulseId);
 
     if (subitems.length === 0) {
@@ -268,7 +263,6 @@ app.post('/exportaSubitemsAgrupados', async (req, res) => {
       return res.status(404).json({ message: "Nenhum subitem encontrado para este item." });
     }
 
-    console.log(`Subitens encontrados para o item ${pulseId}:`, JSON.stringify(subitems, null, 2));
     res.json({ success: true, subitems });
 
   } catch (error) {
