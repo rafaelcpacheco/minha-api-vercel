@@ -194,6 +194,7 @@ const fetchSubitems = async (itemId) => {
     return [];
   }
 
+  console.log(`Subitens capturados para o item ${itemId}:`, JSON.stringify(result.data.items[0].subitems, null, 2));
   return result.data.items[0].subitems;
 };
 
@@ -202,21 +203,21 @@ app.post('/exportaSubitemsAgrupados', async (req, res) => {
   try {
     console.log("Payload recebido:", JSON.stringify(req.body, null, 2));
 
-    if (req.body.challenge) {
-      return res.status(200).json({ challenge: req.body.challenge });
-    }
-    
     const { pulseId } = req.body.event;
     if (!pulseId) {
+      console.error("ID do item não fornecido no payload.");
       return res.status(400).json({ error: "ID do item não fornecido no payload." });
     }
 
+    console.log(`Buscando subitens para o item ${pulseId}...`);
     const subitems = await fetchSubitems(pulseId);
 
     if (subitems.length === 0) {
+      console.warn(`Nenhum subitem encontrado para o item ${pulseId}.`);
       return res.status(404).json({ message: "Nenhum subitem encontrado para este item." });
     }
 
+    console.log(`Subitens encontrados para o item ${pulseId}:`, JSON.stringify(subitems, null, 2));
     res.json({ success: true, subitems });
 
   } catch (error) {
