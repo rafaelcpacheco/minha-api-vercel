@@ -204,6 +204,7 @@ const fetchSubitems = async (boardId, itemId) => {
   return subitems;
 };
 
+// Novo endpoint para exportar subitens agrupados
 app.post('/exportaSubitemsAgrupados', async (req, res) => {
   try {
     console.log("Payload recebido:", JSON.stringify(req.body, null, 2));
@@ -214,12 +215,13 @@ app.post('/exportaSubitemsAgrupados', async (req, res) => {
       return res.status(200).json({ challenge: req.body.challenge });
     }
 
-    const { boardId, itemId } = req.body;
+    const { itemId } = req.body;
 
-    if (!boardId || !itemId) {
-      return res.status(400).json({ error: "O ID do quadro e o ID do item são obrigatórios!" });
+    if (!itemId) {
+      return res.status(400).json({ error: "O ID do item é obrigatório!" });
     }
 
+    const boardId = 8738136631; // ID do quadro fixo, como solicitado
     const subitems = await fetchSubitems(boardId, itemId);
 
     console.log("Subitens capturados:", JSON.stringify(subitems, null, 2));
