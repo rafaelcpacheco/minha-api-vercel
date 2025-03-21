@@ -10,7 +10,7 @@ app.use(express.urlencoded({ extended: true }));
 const MONDAY_API_TOKEN = process.env.MONDAY_API_TOKEN || "SEU_TOKEN_AQUI";
 
 // Função para chamar a API do monday.com
-const fetchMondayData = async (query, variables = {}) => {
+const fetchMondayData = async (query) => {
   try {
     const response = await fetch("https://api.monday.com/v2", {
       method: "POST",
@@ -18,23 +18,21 @@ const fetchMondayData = async (query, variables = {}) => {
         "Authorization": MONDAY_API_TOKEN,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ query, variables }),
+      body: JSON.stringify({ query }),
     });
 
-    const data = await response.json();
-
     if (!response.ok) {
-      console.error("Erro na requisição:", data.errors || data);
       throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
     }
 
-    return data;
+    const result = await response.json();
+    return result;
+
   } catch (error) {
     console.error("Erro na requisição:", error);
     throw error;
   }
 };
-
 
 // Função para buscar todos os itens do quadro com paginação
 const fetchAllItems = async (boardId) => {
@@ -136,82 +134,6 @@ const updateSaldos = async (boardId, startItemId, creditDebitValue) => {
   }
 };
 
-const moveSubitemsToAnotherBoard = async (sourceBoardId, sourceItemId, targetBoardId, targetGroupId) => {
-  try {
-    console.log("sourceBoardId:", sourceBoardId);
-    console.log("sourceItemId:", sourceItemId);
-    console.log("targetBoardId:", targetBoardId);
-    console.log("targetGroupId:", targetGroupId);
-
-    // Query GraphQL com variável
-    const query = `
-      query getSubitems($sourceBoardId: [ID!]) {
-        boards(ids: $sourceBoardId) {
-          items_page(limit: 20) {
-            items {
-              name
-              subitems {
-                id
-                name
-                column_values {
-                  id
-                  text
-                  value
-                }
-              }
-            }
-          }
-        }
-      }
-    `;
-
-    // Variáveis (convertendo sourceBoardId para array de strings)
-    const variables = {
-      sourceBoardId: [String(sourceBoardId)], // Garante que é um array de strings
-    };
-
-    console.log("Query e variáveis:", { query, variables });
-
-    // Chama a API passando a query e as variáveis
-    const result = await fetchMondayData(query, variables);
-
-    console.log("Resposta da API ao buscar subitens:", JSON.stringify(result, null, 2));
-
-    if (!result.data || !result.data.boards || !result.data.boards[0]?.items_page?.items) {
-      console.error("Resposta da API malformada ou sem subitens.");
-      throw new Error("Resposta da API malformada ou vazia");
-    }
-
-    const subitems = result.data.boards[0].items_page.items[0].subitems;
-
-    console.log("Subitens encontrados:", JSON.stringify(subitems, null, 2));
-
-    // Move cada subitem para o quadro de destino
-    for (const subitem of subitems) {
-      const mutation = `mutation {
-        move_item_to_group (item_id: ${subitem.id}, group_id: "${targetGroupId}") {
-          id
-        }
-      }`;
-
-      console.log("Mutation para mover subitem:", mutation);
-
-      const mutationResult = await fetchMondayData(mutation);
-
-      console.log("Resposta da API ao mover subitem:", JSON.stringify(mutationResult, null, 2));
-    }
-
-    console.log("Subitens movidos com sucesso.");
-    return { success: true };
-
-  } catch (error) {
-    console.error("Erro ao mover subitens:", error);
-    throw error;
-  }
-};
-
-
-// Endpoint original (webhook)
 app.post('/webhook', async (req, res) => {
   try {
     console.log("Payload recebido:", JSON.stringify(req.body, null, 2));
@@ -250,55 +172,63 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
-// Endpoint para mover subitens
-app.post('/moveSubItensReembolsoDespesas', async (req, res) => {
+const fetchSubitems = async (boardId, itemId) => {
+  const query = `{
+    boards(ids: ${boardId}) {
+      items(ids: ${itemId}) {
+        subitems {
+          id
+          name
+          column_values {
+            id
+            value
+          }
+        }
+      }
+    }
+  }`;
+
+  const result = await fetchMondayData(query);
+
+  if (!result.data || !result.data.boards || !result.data.boards[0]?.items || !result.data.boards[0].items[0]?.subitems) {
+    console.error("Resposta da API malformada ou sem subitens:", JSON.stringify(result, null, 2));
+    throw new Error("Resposta da API malformada ou sem subitens");
+  }
+
+  return result.data.boards[0].items[0].subitems;
+};
+
+app.post('/exportaSubitemsAgrupados', async (req, res) => {
   try {
     console.log("Payload recebido:", JSON.stringify(req.body, null, 2));
 
     req.setTimeout(120000);
 
     if (req.body.challenge) {
-      console.log("Challenge recebido:", req.body.challenge);
       return res.status(200).json({ challenge: req.body.challenge });
     }
 
-    const payload = req.body.event;
+    const { boardId, itemId } = req.body;
 
-    if (!payload) {
-      console.error("Payload está indefinido.");
-      return res.status(400).json({ error: "Payload está indefinido." });
+    if (!boardId || !itemId) {
+      return res.status(400).json({ error: "O ID do quadro e o ID do item são obrigatórios!" });
     }
 
-    const { boardId, pulseId, columnId, value } = payload;
+    const subitems = await fetchSubitems(boardId, itemId);
 
-    if (!boardId || !pulseId || !columnId || !value) {
-      console.error("Dados incompletos no payload:", { boardId, pulseId, columnId, value });
-      return res.status(400).json({ error: "Dados incompletos!" });
-    }
+    console.log("Subitens capturados:", JSON.stringify(subitems, null, 2));
 
-    console.log("Dados do payload:", { boardId, pulseId, columnId, value });
+    // Aqui você pode adicionar a lógica para exportar os subitens para outro quadro no futuro
+    // Por enquanto, apenas retornamos os subitens capturados
 
-    // Verifica se o status mudou para "Aprovado"
-    if (columnId === "status_mkmy5rzh" && value.label.index === 1) { // Corrigido aqui
-      const targetBoardId = 8738136631; // ID do quadro de destino
-      const targetGroupId = 8738792354; // ID do grupo "Em Aprovação" no quadro de destino
-
-      console.log("Status mudou para 'Aprovado'. Iniciando movimentação de subitens...");
-
-      await moveSubitemsToAnotherBoard(boardId, pulseId, targetBoardId, targetGroupId);
-      return res.json({ success: true });
-    }
-
-    console.log("Coluna não monitorada ou status não alterado para 'Aprovado'.");
-    res.json({ message: "Coluna não monitorada ou status não alterado para Aprovado." });
+    return res.status(200).json({ success: true, subitems });
 
   } catch (error) {
-    console.error("Erro no endpoint moveSubItensReembolsoDespesas:", error);
+    console.error("Erro em exportaSubitemsAgrupados:", error);
     res.status(500).json({ error: "Erro interno" });
   }
 });
 
-// Inicia o servidor
 app.listen(port, () => {
   console.log(`Servidor rodando em http://localhost:${port}`);
 });

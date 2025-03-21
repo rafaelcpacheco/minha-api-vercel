@@ -12,7 +12,7 @@
       "dest": "index.js"
     },
     {
-      "src": "/moveSubItensReembolsoDespesas",
+      "src": "/exportaSubitemsAgrupados",
       "dest": "index.js"
     }
   ]
