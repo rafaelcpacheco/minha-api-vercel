@@ -238,7 +238,7 @@ const fetchSubitems = async (itemId) => {
 
   console.log(`Subitens capturados para o item ${itemId}:`, JSON.stringify(subitems, null, 2));
 
-  const groupedSubitems = groupSubitems(exampleSubitems);
+  const groupedSubitems = groupSubitems(subitems);
 
   console.log("Subitens agrupados:", JSON.stringify(groupedSubitems, null, 2));
 
