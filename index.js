@@ -173,17 +173,15 @@ app.post('/webhook', async (req, res) => {
 });
 
 // Função para capturar os subitens de um item específico
-const fetchSubitems = async (boardId, itemId) => {
+const fetchSubitems = async (itemId) => {
   const query = `{
-    boards(ids: ${boardId}) {
-      items(ids: ${itemId}) {
-        subitems {
+    items(ids: ${itemId}) {
+      subitems {
+        id
+        name
+        column_values {
           id
-          name
-          column_values {
-            id
-            value
-          }
+          value
         }
       }
     }
@@ -191,51 +189,42 @@ const fetchSubitems = async (boardId, itemId) => {
 
   const result = await fetchMondayData(query);
 
-  if (!result.data || !result.data.boards || !result.data.boards[0]?.items || !result.data.boards[0].items[0]?.subitems) {
+  if (!result.data || !result.data.items || !result.data.items[0]?.subitems) {
     console.error("Resposta da API malformada ou sem subitens:", JSON.stringify(result, null, 2));
-    throw new Error("Resposta da API malformada ou sem subitens");
+    return [];
   }
 
-  const subitems = result.data.boards[0].items[0].subitems;
-
-  // Log para depuração: exibe os subitens capturados
-  console.log("Subitens capturados:", JSON.stringify(subitems, null, 2));
-
-  return subitems;
+  return result.data.items[0].subitems;
 };
 
-// Novo endpoint para exportar subitens agrupados
+// Endpoint para exportar subitens agrupados
 app.post('/exportaSubitemsAgrupados', async (req, res) => {
   try {
     console.log("Payload recebido:", JSON.stringify(req.body, null, 2));
 
-    req.setTimeout(120000);
-
     if (req.body.challenge) {
       return res.status(200).json({ challenge: req.body.challenge });
     }
-
-    const { itemId } = req.body;
-
-    if (!itemId) {
-      return res.status(400).json({ error: "O ID do item é obrigatório!" });
+    
+    const { pulseId } = req.body.event;
+    if (!pulseId) {
+      return res.status(400).json({ error: "ID do item não fornecido no payload." });
     }
 
-    const boardId = 8738136631; // ID do quadro fixo, como solicitado
-    const subitems = await fetchSubitems(boardId, itemId);
+    const subitems = await fetchSubitems(pulseId);
 
-    console.log("Subitens capturados:", JSON.stringify(subitems, null, 2));
+    if (subitems.length === 0) {
+      return res.status(404).json({ message: "Nenhum subitem encontrado para este item." });
+    }
 
-    // Aqui você pode adicionar a lógica para exportar os subitens para outro quadro no futuro
-    // Por enquanto, apenas retornamos os subitens capturados
-
-    return res.status(200).json({ success: true, subitems });
+    res.json({ success: true, subitems });
 
   } catch (error) {
     console.error("Erro em exportaSubitemsAgrupados:", error);
-    res.status(500).json({ error: "Erro interno" });
+    res.status(500).json({ error: "Erro interno ao buscar subitens." });
   }
 });
+
 
 app.listen(port, () => {
   console.log(`Servidor rodando em http://localhost:${port}`);
