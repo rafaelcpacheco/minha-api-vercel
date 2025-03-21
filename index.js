@@ -172,6 +172,36 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
+const groupSubitems = (subitems) => {
+  // Cria um objeto para armazenar o agrupamento
+  const grouped = {};
+
+  // Itera sobre os subitens
+  subitems.forEach(subitem => {
+    // Obtém o valor de 'name' e 'numbers_mkmxqbg4'
+    const name = subitem.name;
+    const numbers_mkmxqbg4 = subitem.column_values.find(col => col.id === 'numbers_mkmxqbg4')?.value;
+
+    if (!numbers_mkmxqbg4) {
+      console.warn(`⚠️ Subitem sem o valor 'numbers_mkmxqbg4' encontrado: ${JSON.stringify(subitem)}`);
+      return; // Se não tiver o valor 'numbers_mkmxqbg4', ignora
+    }
+
+    // Usa uma chave combinando 'name' e 'numbers_mkmxqbg4' para o agrupamento
+    const key = `${name}_${numbers_mkmxqbg4}`;
+
+    // Se a chave ainda não existir no agrupamento, cria uma nova chave
+    if (!grouped[key]) {
+      grouped[key] = [];
+    }
+
+    // Adiciona o subitem ao grupo
+    grouped[key].push(subitem);
+  });
+
+  return grouped;
+};
+
 const fetchSubitems = async (itemId) => {
   console.log(`⏳ Aguardando 3 segundos antes de buscar os subitens do item ${itemId}...`);
 
@@ -207,9 +237,13 @@ const fetchSubitems = async (itemId) => {
   subitems = subitems.filter(Boolean);
 
   console.log(`Subitens capturados para o item ${itemId}:`, JSON.stringify(subitems, null, 2));
+
+  const groupedSubitems = groupSubitems(exampleSubitems);
+
+  console.log("Subitens agrupados:", JSON.stringify(groupedSubitems, null, 2));
+
   return subitems;
 };
-
 
 // Endpoint para exportar subitens agrupados
 app.post('/exportaSubitemsAgrupados', async (req, res) => {
