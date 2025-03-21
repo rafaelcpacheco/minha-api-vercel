@@ -172,7 +172,7 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
-const groupSubitems = (subitems) => {
+const groupSubitems = (subitems, item) => {
   const grouped = {};
 
   subitems.forEach(subitem => {
@@ -180,21 +180,21 @@ const groupSubitems = (subitems) => {
     let numbers_mkmxqbg4 = subitem.column_values.find(col => col.id === 'numbers_mkmxqbg4')?.value;
 
     if (!numbers_mkmxqbg4) {
-      console.warn(`⚠️ Subitem sem o valor 'numbers_mkmxqbg4' encontrado: ${JSON.stringify(subitem)}`);
+      console.warn(`Subitem sem o valor 'numbers_mkmxqbg4' encontrado: ${JSON.stringify(subitem)}`);
       return;
     }
 
-    // Remove aspas duplas caso o valor esteja como string JSON
+    // Remove aspas duplas caso o valor venha como string JSON e converte para número
     numbers_mkmxqbg4 = Number(numbers_mkmxqbg4.replace(/"/g, ''));
 
     if (isNaN(numbers_mkmxqbg4)) {
-      console.warn(`⚠️ Valor inválido em 'numbers_mkmxqbg4': ${numbers_mkmxqbg4}`);
+      console.warn(`Valor inválido em 'numbers_mkmxqbg4': ${numbers_mkmxqbg4}`);
       return;
     }
 
     // Usa apenas o nome como chave para o agrupamento
     if (!grouped[name]) {
-      grouped[name] = { total: 0, subitems: [] };
+      grouped[name] = { total: 0, subitems: [], item };
     }
 
     // Soma os valores do campo numbers_mkmxqbg4
@@ -205,12 +205,21 @@ const groupSubitems = (subitems) => {
   return grouped;
 };
 
-
 const fetchSubitems = async (itemId) => {
+  console.log(`Aguardando 3 segundos antes de buscar os subitens do item ${itemId}...`);
+
   await new Promise(resolve => setTimeout(resolve, 3000));
+
+  console.log(`Buscando subitens do item ${itemId} agora...`);
 
   const query = `{
     items(ids: ${itemId}) {
+      id
+      name
+      column_values {
+        id
+        value
+      }
       subitems {
         id
         name
@@ -224,22 +233,28 @@ const fetchSubitems = async (itemId) => {
 
   const result = await fetchMondayData(query);
 
-  if (!result.data || !result.data.items || !result.data.items[0]?.subitems) {
-    console.error("Resposta da API malformada ou sem subitens:", JSON.stringify(result, null, 2));
-    return [];
+  console.log(`Resposta completa da API para o item ${itemId}:`, JSON.stringify(result, null, 2));
+
+  if (!result.data || !result.data.items || !result.data.items[0]) {
+    console.error("Resposta da API malformada ou sem item:", JSON.stringify(result, null, 2));
+    return {};
   }
 
-  let subitems = result.data.items[0].subitems || [];
+  const item = result.data.items[0];
+  let subitems = item.subitems || [];
 
   // Filtra valores nulos, caso existam
   subitems = subitems.filter(Boolean);
 
-  const groupedSubitems = groupSubitems(subitems);
+  console.log(`Subitens capturados para o item ${itemId}:`, JSON.stringify(subitems, null, 2));
+
+  const groupedSubitems = groupSubitems(subitems, item);
 
   console.log("Subitens agrupados:", JSON.stringify(groupedSubitems, null, 2));
 
-  return subitems;
+  return groupedSubitems;
 };
+
 
 // Endpoint para exportar subitens agrupados
 app.post('/exportaSubitemsAgrupados', async (req, res) => {
