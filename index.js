@@ -172,6 +172,7 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
+// Função para capturar os subitens de um item específico
 const fetchSubitems = async (boardId, itemId) => {
   const query = `{
     boards(ids: ${boardId}) {
@@ -195,7 +196,12 @@ const fetchSubitems = async (boardId, itemId) => {
     throw new Error("Resposta da API malformada ou sem subitens");
   }
 
-  return result.data.boards[0].items[0].subitems;
+  const subitems = result.data.boards[0].items[0].subitems;
+
+  // Log para depuração: exibe os subitens capturados
+  console.log("Subitens capturados:", JSON.stringify(subitems, null, 2));
+
+  return subitems;
 };
 
 app.post('/exportaSubitemsAgrupados', async (req, res) => {
