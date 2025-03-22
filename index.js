@@ -223,11 +223,11 @@ const groupSubitems = (subitems, item) => {
 
 
 const fetchSubitems = async (itemId) => {
-  console.log(`Aguardando 3 segundos antes de buscar os subitens do item ${itemId}...`);
+  //console.log(`Aguardando 3 segundos antes de buscar os subitens do item ${itemId}...`);
 
-  await new Promise(resolve => setTimeout(resolve, 3000));
+  //await new Promise(resolve => setTimeout(resolve, 3000));
 
-  console.log(`Buscando subitens do item ${itemId} agora...`);
+  //console.log(`Buscando subitens do item ${itemId} agora...`);
 
   const query = `{
     items(ids: ${itemId}) {
@@ -250,7 +250,7 @@ const fetchSubitems = async (itemId) => {
 
   const result = await fetchMondayData(query);
 
-  console.log(`Resposta completa da API para o item ${itemId}:`, JSON.stringify(result, null, 2));
+  //console.log(`Resposta completa da API para o item ${itemId}:`, JSON.stringify(result, null, 2));
 
   if (!result.data || !result.data.items || !result.data.items[0]) {
     console.error("Resposta da API malformada ou sem item:", JSON.stringify(result, null, 2));
@@ -263,7 +263,7 @@ const fetchSubitems = async (itemId) => {
   // Filtra valores nulos, caso existam
   subitems = subitems.filter(Boolean);
 
-  console.log(`Subitens capturados para o item ${itemId}:`, JSON.stringify(subitems, null, 2));
+  //console.log(`Subitens capturados para o item ${itemId}:`, JSON.stringify(subitems, null, 2));
 
   const groupedSubitems = groupSubitems(subitems, item);
 
@@ -276,7 +276,7 @@ const fetchSubitems = async (itemId) => {
 // Endpoint para exportar subitens agrupados
 app.post('/exportaSubitemsAgrupados', async (req, res) => {
   try {
-    console.log("Payload recebido:", JSON.stringify(req.body, null, 2));
+    //console.log("Payload recebido:", JSON.stringify(req.body, null, 2));
 
     if (req.body.challenge) {
       return res.status(200).json({ challenge: req.body.challenge });
