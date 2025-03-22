@@ -175,6 +175,19 @@ app.post('/webhook', async (req, res) => {
 const groupSubitems = (subitems, item) => {
   const grouped = {};
 
+  let connect_boards_mkmx8jsh = item.column_values.find(col => col.id === 'connect_boards_mkmx8jsh')?.value;
+
+  if (connect_boards_mkmx8jsh) {
+    try {
+      connect_boards_mkmx8jsh = JSON.parse(connect_boards_mkmx8jsh).linkedPulseIds.map(pulse => pulse.linkedPulseId);
+    } catch (error) {
+      console.warn(`Erro ao processar connect_boards_mkmx8jsh para o item ${item.id}:`, error);
+      connect_boards_mkmx8jsh = [];
+    }
+  } else {
+    connect_boards_mkmx8jsh = [];
+  }
+
   subitems.forEach(subitem => {
     const name = subitem.name;
     let numbers_mkmxqbg4 = subitem.column_values.find(col => col.id === 'numbers_mkmxqbg4')?.value;
@@ -184,7 +197,6 @@ const groupSubitems = (subitems, item) => {
       return;
     }
 
-    // Remove aspas duplas caso o valor venha como string JSON e converte para número
     numbers_mkmxqbg4 = Number(numbers_mkmxqbg4.replace(/"/g, ''));
 
     if (isNaN(numbers_mkmxqbg4)) {
@@ -192,9 +204,13 @@ const groupSubitems = (subitems, item) => {
       return;
     }
 
-    // Usa apenas o nome como chave para o agrupamento
     if (!grouped[name]) {
-      grouped[name] = { total: 0, subitems: [], item };
+      grouped[name] = { 
+        total: 0, 
+        subitems: [], 
+        item,
+        connect_boards_mkmx8jsh 
+      };
     }
 
     // Soma os valores do campo numbers_mkmxqbg4
@@ -204,6 +220,7 @@ const groupSubitems = (subitems, item) => {
 
   return grouped;
 };
+
 
 const fetchSubitems = async (itemId) => {
   console.log(`Aguardando 3 segundos antes de buscar os subitens do item ${itemId}...`);
