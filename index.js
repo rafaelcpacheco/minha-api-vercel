@@ -225,13 +225,16 @@ const groupSubitems = (subitems, item) => {
 };
 
 const createNewItem = async (name, futureGroupId, total) => {
+  // Garantir que o total tenha duas casas decimais
+  const formattedTotal = parseFloat(total).toFixed(2);
+
   const mutation = `mutation {
     create_item (
       board_id: 8274760820,
       group_id: "${futureGroupId}",
       item_name: "${name}",
       column_values: {
-        n_meros_mkmcm7c7: ${total}
+        n_meros_mkmcm7c7: "${formattedTotal}"
       }
     ) {
       id
