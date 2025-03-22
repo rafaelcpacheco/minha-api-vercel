@@ -204,7 +204,6 @@ const groupSubitems = (subitems, item) => {
       return;
     }
 
-    // Remove campos indesejados
     subitem.column_values = subitem.column_values.filter(col => 
       !['dropdown_mkmxnc3m', 'numbers_mkmx5wkb', 'files_mkmx6zxw'].includes(col.id)
     );
@@ -218,12 +217,26 @@ const groupSubitems = (subitems, item) => {
       };
     }
 
-    // Soma os valores do campo numbers_mkmxqbg4
     grouped[name].total += numbers_mkmxqbg4;
     grouped[name].subitems.push(subitem);
   });
 
   return grouped;
+};
+
+const createNewItem = async (name, futureGroupId) => {
+  const mutation = `mutation {
+    create_item (
+      board_id: 8274760820,
+      group_id: "${futureGroupId}",
+      item_name: "${name}"
+    ) {
+      id
+    }
+  }`;
+
+  const result = await fetchMondayData(mutation);
+  return result?.data?.create_item?.id || null;
 };
 
 const fetchSubitems = async (itemId) => {
@@ -308,20 +321,26 @@ app.post('/exportaSubitemsAgrupados', async (req, res) => {
     }
 
     const subitems = await fetchSubitems(pulseId);
-
     if (Object.keys(subitems).length === 0) {
       console.warn(`Nenhum subitem encontrado para o item ${pulseId}.`);
       return res.status(404).json({ message: "Nenhum subitem encontrado para este item." });
     }
 
     const futureGroupId = await fetchBoardGroups(8274760820);
-    
     if (!futureGroupId) {
       return res.status(500).json({ error: "Grupo 'Futuro' não encontrado no quadro de destino." });
     }
 
-    res.json({ success: true, subitems, futureGroupId });
+    for (const [name] of Object.entries(subitems)) {
+      const newItemId = await createNewItem(name, futureGroupId);
+      if (!newItemId) {
+        console.error(`Erro ao criar item para '${name}'`);
+        continue;
+      }
+      console.log(`Item '${name}' criado com sucesso, ID: ${newItemId}`);
+    }
 
+    res.json({ success: true, subitems, futureGroupId });
   } catch (error) {
     console.error("Erro em exportaSubitemsAgrupados:", error);
     res.status(500).json({ error: "Erro interno ao buscar subitens." });
