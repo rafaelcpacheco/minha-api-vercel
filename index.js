@@ -272,12 +272,39 @@ const fetchSubitems = async (itemId) => {
   return groupedSubitems;
 };
 
+const fetchBoardGroups = async (boardId) => {
+  const query = `{
+    boards(ids: ${boardId}) {
+      groups {
+        id
+        title
+      }
+    }
+  }`;
 
-// Endpoint para exportar subitens agrupados
+  const result = await fetchMondayData(query);
+
+  if (!result.data || !result.data.boards || !result.data.boards[0]) {
+    console.error(`Erro ao buscar grupos do quadro ${boardId}:`, JSON.stringify(result, null, 2));
+    return null;
+  }
+
+  const groups = result.data.boards[0].groups;
+  //console.log(`Grupos encontrados no quadro ${boardId}:`, JSON.stringify(groups, null, 2));
+
+  const futureGroup = groups.find(group => group.title === "Futuro");
+
+  if (!futureGroup) {
+    console.warn(`Grupo "Futuro" não encontrado no quadro ${boardId}.`);
+    return null;
+  }
+
+  console.log(`ID do grupo "Futuro": ${futureGroup.id}`);
+  return futureGroup.id;
+};
+
 app.post('/exportaSubitemsAgrupados', async (req, res) => {
   try {
-    //console.log("Payload recebido:", JSON.stringify(req.body, null, 2));
-
     if (req.body.challenge) {
       return res.status(200).json({ challenge: req.body.challenge });
     }
@@ -290,18 +317,25 @@ app.post('/exportaSubitemsAgrupados', async (req, res) => {
 
     const subitems = await fetchSubitems(pulseId);
 
-    if (subitems.length === 0) {
+    if (Object.keys(subitems).length === 0) {
       console.warn(`Nenhum subitem encontrado para o item ${pulseId}.`);
       return res.status(404).json({ message: "Nenhum subitem encontrado para este item." });
     }
 
-    res.json({ success: true, subitems });
+    const futureGroupId = await fetchBoardGroups(8274760820);
+    
+    if (!futureGroupId) {
+      return res.status(500).json({ error: "Grupo 'Futuro' não encontrado no quadro de destino." });
+    }
+
+    res.json({ success: true, subitems, futureGroupId });
 
   } catch (error) {
     console.error("Erro em exportaSubitemsAgrupados:", error);
     res.status(500).json({ error: "Erro interno ao buscar subitens." });
   }
 });
+
 
 
 app.listen(port, () => {
