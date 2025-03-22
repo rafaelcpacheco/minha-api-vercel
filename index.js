@@ -224,18 +224,12 @@ const groupSubitems = (subitems, item) => {
   return grouped;
 };
 
-const createNewItem = async (name, futureGroupId, total) => {
-  // Garantir que o total tenha duas casas decimais
-  const formattedTotal = parseFloat(total).toFixed(2);
-
+const createNewItem = async (name, futureGroupId) => {
   const mutation = `mutation {
     create_item (
       board_id: 8274760820,
       group_id: "${futureGroupId}",
-      item_name: "${name}",
-      column_values: {
-        n_meros_mkmcm7c7: "${formattedTotal}"
-      }
+      item_name: "${name}"
     ) {
       id
     }
@@ -337,8 +331,8 @@ app.post('/exportaSubitemsAgrupados', async (req, res) => {
       return res.status(500).json({ error: "Grupo 'Futuro' não encontrado no quadro de destino." });
     }
 
-    for (const [name, data] of Object.entries(subitems)) {
-      const newItemId = await createNewItem(name, futureGroupId, data.total);
+    for (const [name] of Object.entries(subitems)) {
+      const newItemId = await createNewItem(name, futureGroupId);
       if (!newItemId) {
         console.error(`Erro ao criar item para '${name}'`);
         continue;
